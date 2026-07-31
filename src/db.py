@@ -137,6 +137,121 @@ def team_names() -> dict[int, dict]:
         return {r["id"]: dict(r) for r in rows}
 
 
+def season_matches(season: int) -> list[dict]:
+    """Όλοι οι αγώνες της σεζόν (τελειωμένοι + προγραμματισμένοι), για την
+    προσομοίωση τελικής βαθμολογίας."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM matches WHERE season=? ORDER BY utc_date", (season,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def standings_and_form(season: int, form_length: int = 5) -> list[dict]:
+    """Πίνακας βαθμολογίας υπολογισμένος από τους τελειωμένους αγώνες της
+    σεζόν (χωρίς να καλούμε ξανά το API), μαζί με τα τελευταία αποτελέσματα
+    κάθε ομάδας (φόρμα). Ταξινόμηση: βαθμοί -> διαφορά τερμάτων -> γκολ υπέρ
+    (χωρίς head-to-head, μικρή απλοποίηση σε σχέση με τον επίσημο κανονισμό)."""
+    matches = finished_matches(season)
+    names = team_names()
+
+    table: dict[int, dict] = {}
+    history: dict[int, list] = {}
+
+    def row(team_id):
+        if team_id not in table:
+            table[team_id] = {
+                "team_id": team_id,
+                "name": names.get(team_id, {}).get("name", f"Team {team_id}"),
+                "played": 0, "won": 0, "draw": 0, "lost": 0,
+                "gf": 0, "ga": 0, "points": 0,
+            }
+            history[team_id] = []
+        return table[team_id]
+
+    matches_sorted = sorted(matches, key=lambda m: m.get("utc_date") or "")
+    for m in matches_sorted:
+        h, a = m["home_team_id"], m["away_team_id"]
+        hs, aw = m["home_score"], m["away_score"]
+        if h is None or a is None:
+            continue
+        rh, ra = row(h), row(a)
+        rh["played"] += 1
+        ra["played"] += 1
+        rh["gf"] += hs
+        rh["ga"] += aw
+        ra["gf"] += aw
+        ra["ga"] += hs
+        if hs > aw:
+            rh["won"] += 1
+            ra["lost"] += 1
+            rh["points"] += 3
+            history[h].append("W")
+            history[a].append("L")
+        elif hs < aw:
+            ra["won"] += 1
+            rh["lost"] += 1
+            ra["points"] += 3
+            history[h].append("L")
+            history[a].append("W")
+        else:
+            rh["draw"] += 1
+            ra["draw"] += 1
+            rh["points"] += 1
+            ra["points"] += 1
+            history[h].append("D")
+            history[a].append("D")
+
+    result = []
+    for team_id, r in table.items():
+        r = dict(r)
+        r["gd"] = r["gf"] - r["ga"]
+        r["form"] = history[team_id][-form_length:][::-1]  # πιο πρόσφατο πρώτο
+        result.append(r)
+
+    result.sort(key=lambda r: (-r["points"], -r["gd"], -r["gf"]))
+    for i, r in enumerate(result, start=1):
+        r["position"] = i
+    return result
+
+
+def accuracy_stats(season: int) -> dict:
+    """Πόσο συχνά η πρόβλεψή μας (πριν τον αγώνα) πέτυχε το σωστό
+    αποτέλεσμα (1/Χ/2) ή το ακριβές σκορ, στους αγώνες της σεζόν που έχουν
+    ήδη τελειώσει."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT m.home_score, m.away_score,
+                      p.predicted_home_score, p.predicted_away_score
+               FROM matches m JOIN predictions p ON p.match_id = m.id
+               WHERE m.season=? AND m.status='FINISHED'
+                 AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
+            (season,),
+        ).fetchall()
+
+    total = len(rows)
+    correct_result = 0
+    exact_score = 0
+    for r in rows:
+        actual = "H" if r["home_score"] > r["away_score"] else (
+            "A" if r["home_score"] < r["away_score"] else "D")
+        predicted = "H" if r["predicted_home_score"] > r["predicted_away_score"] else (
+            "A" if r["predicted_home_score"] < r["predicted_away_score"] else "D")
+        if actual == predicted:
+            correct_result += 1
+        if (r["home_score"] == r["predicted_home_score"]
+                and r["away_score"] == r["predicted_away_score"]):
+            exact_score += 1
+
+    return {
+        "total": total,
+        "correct_result": correct_result,
+        "exact_score": exact_score,
+        "result_pct": (correct_result / total * 100) if total else None,
+        "exact_pct": (exact_score / total * 100) if total else None,
+    }
+
+
 def save_predictions(preds: list[dict]) -> None:
     with connect() as conn:
         for p in preds:

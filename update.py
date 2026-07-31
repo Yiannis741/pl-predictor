@@ -18,7 +18,7 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src import config, db, predictor, render  # noqa: E402
+from src import config, db, predictor, render, simulate  # noqa: E402
 from src.api_client import FootballDataClient  # noqa: E402
 
 # Αν η τρέχουσα σεζόν έχει λιγότερους τελειωμένους αγώνες από αυτό το όριο
@@ -74,7 +74,18 @@ def main() -> None:
             preds.append({"match_id": m["id"], **pred})
         db.save_predictions(preds)
 
-    out_path = render.render_report(season, matchday, fixtures, preds)
+    print("Υπολογισμός βαθμολογίας/φόρμας...")
+    table = db.standings_and_form(season)
+
+    print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων...")
+    accuracy = db.accuracy_stats(season)
+
+    print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές)...")
+    all_matches = db.season_matches(season)
+    sim = simulate.simulate_season(model, all_matches, season)
+
+    out_path = render.render_report(season, matchday, fixtures, preds,
+                                     table=table, accuracy=accuracy, sim=sim)
     print(f"Ολοκληρώθηκε. Δες το {out_path}")
 
 

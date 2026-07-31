@@ -119,7 +119,11 @@ def _neutral_strength() -> dict:
     return {"home_attack": 1.0, "home_defense": 1.0, "away_attack": 1.0, "away_defense": 1.0}
 
 
-def predict_match(model: dict, home_id: int, away_id: int) -> dict:
+def expected_goals(model: dict, home_id: int, away_id: int) -> tuple[float, float]:
+    """Το αναμενόμενο σκορ (λ) κάθε ομάδας, χωρίς να χτίσουμε ολόκληρο τον
+    πίνακα Poisson — το χρησιμοποιεί και το predict_match() παρακάτω, και η
+    προσομοίωση σεζόν (simulate.py) που χρειάζεται μόνο τα λ για χιλιάδες
+    δείγματα."""
     teams = model["teams"]
     home_s = teams.get(home_id, _neutral_strength())
     away_s = teams.get(away_id, _neutral_strength())
@@ -130,6 +134,11 @@ def predict_match(model: dict, home_id: int, away_id: int) -> dict:
     # Ασφάλεια ορίων ώστε ακραίες τιμές να μην τρελάνουν τον πίνακα Poisson.
     lam_home = max(0.05, min(lam_home, 6.0))
     lam_away = max(0.05, min(lam_away, 6.0))
+    return lam_home, lam_away
+
+
+def predict_match(model: dict, home_id: int, away_id: int) -> dict:
+    lam_home, lam_away = expected_goals(model, home_id, away_id)
 
     matrix = [
         [_poisson_pmf(i, lam_home) * _poisson_pmf(j, lam_away) for j in range(MAX_GOALS + 1)]
