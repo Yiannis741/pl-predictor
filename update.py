@@ -85,6 +85,7 @@ def main() -> None:
 
     print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων...")
     accuracy = db.accuracy_stats(season)
+    team_accuracy = db.team_accuracy(season)
 
     print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές)...")
     all_matches = db.season_matches(season)
@@ -96,7 +97,16 @@ def main() -> None:
         "label": current_label,
         "html": render.build_section(
             "current", current_label, season, matchday, fixtures, preds,
-            table=table, accuracy=accuracy, sim=sim, active=True,
+            table=table, accuracy=accuracy, sim=sim, team_accuracy=team_accuracy,
+            active=True,
+        ),
+    }]
+    detail_sections = [{
+        "id": "detail-current",
+        "label": f"Αναλυτικά {season}-{season + 1}",
+        "html": render.build_detail_section(
+            "detail-current", f"Αναλυτικά {season}-{season + 1}", season,
+            all_matches, db.predictions_for_season(season),
         ),
     }]
 
@@ -109,8 +119,20 @@ def main() -> None:
             continue
         hist_table = db.standings_and_form(hist_season)
         hist_accuracy = db.accuracy_stats(hist_season)
+        hist_team_accuracy = db.team_accuracy(hist_season)
         if not hist_table:
             continue
+
+        # Προσομοίωση "πριν την 1η αγωνιστική" γι' αυτή τη σεζόν, βασισμένη
+        # στην ΠΡΟΗΓΟΥΜΕΝΗ της (αν υπάρχει ήδη τοπικά -- δεν κάνουμε κλήση
+        # στο API εδώ).
+        prev_hist = db.finished_matches(hist_season - 1)
+        hist_sim = {}
+        if prev_hist:
+            hist_preseason_model = predictor.compute_strengths(prev_hist)
+            if hist_preseason_model is not None:
+                hist_sim = simulate.simulate_season(hist_preseason_model, hist_matches, hist_season)
+
         print(f"  προσθήκη καρτέλας {hist_season}-{hist_season + 1} "
               f"({len(hist_table)} ομάδες στη βαθμολογία)")
         hist_id = f"season{hist_season}"
@@ -120,13 +142,24 @@ def main() -> None:
             "label": hist_label,
             "html": render.build_section(
                 hist_id, hist_label, hist_season, None, [], [], table=hist_table,
-                accuracy=hist_accuracy, sim={},
+                accuracy=hist_accuracy, sim=hist_sim, team_accuracy=hist_team_accuracy,
                 note="Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε "
-                     "το μοντέλο αν το είχαμε τρέξει τότε.",
+                     "το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. "
+                     "= τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική.",
+            ),
+        })
+        detail_id = f"detail-{hist_season}"
+        detail_label = f"Αναλυτικά {hist_season}-{hist_season + 1}"
+        detail_sections.append({
+            "id": detail_id,
+            "label": detail_label,
+            "html": render.build_detail_section(
+                detail_id, detail_label, hist_season, hist_matches,
+                db.predictions_for_season(hist_season),
             ),
         })
 
-    out_path = render.render_site(sections)
+    out_path = render.render_site(sections + detail_sections)
     print(f"Ολοκληρώθηκε. Δες το {out_path}")
 
 

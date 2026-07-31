@@ -306,6 +306,55 @@ def accuracy_stats(season: int) -> dict:
     }
 
 
+def team_accuracy(season: int) -> dict[int, dict]:
+    """Ποσοστό επιτυχίας του μοντέλου (σωστό 1/Χ/2) στους αγώνες κάθε
+    ομάδας -- πιστώνεται και στις δύο ομάδες ενός αγώνα το ίδιο
+    σωστό/λάθος, αφού η πρόβλεψη αφορά τον αγώνα συνολικά."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score,
+                      p.prob_home, p.prob_draw, p.prob_away
+               FROM matches m JOIN predictions p ON p.match_id = m.id
+               WHERE m.season=? AND m.status='FINISHED'
+                 AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
+            (season,),
+        ).fetchall()
+
+    stats: dict[int, list[int]] = {}  # team_id -> [σωστές, σύνολο]
+    for r in rows:
+        actual = "H" if r["home_score"] > r["away_score"] else (
+            "A" if r["home_score"] < r["away_score"] else "D")
+        ph, pd, pa = r["prob_home"], r["prob_draw"], r["prob_away"]
+        if ph >= pd and ph >= pa:
+            predicted = "H"
+        elif pa >= pd:
+            predicted = "A"
+        else:
+            predicted = "D"
+        hit = 1 if predicted == actual else 0
+
+        for team_id in (r["home_team_id"], r["away_team_id"]):
+            s = stats.setdefault(team_id, [0, 0])
+            s[1] += 1
+            s[0] += hit
+
+    return {tid: {"correct": c, "total": t, "pct": (c / t * 100 if t else None)}
+            for tid, (c, t) in stats.items()}
+
+
+def predictions_for_season(season: int) -> dict[int, dict]:
+    """Όλες οι αποθηκευμένες προβλέψεις της σεζόν, keyed by match_id -- για
+    την αναλυτική σελίδα αποτελεσμάτων (όχι μόνο η επόμενη αγωνιστική)."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT p.* FROM predictions p
+               JOIN matches m ON m.id = p.match_id
+               WHERE m.season=?""",
+            (season,),
+        ).fetchall()
+        return {r["match_id"]: dict(r) for r in rows}
+
+
 def save_predictions(preds: list[dict]) -> None:
     with connect() as conn:
         for p in preds:

@@ -69,10 +69,11 @@ def _accuracy_html(accuracy: dict | None) -> str:
             f'&middot; <b>{_fmt_pct(accuracy["exact_pct"])}</b> ακριβές σκορ</div>')
 
 
-def _standings_table(table: list[dict], sim: dict) -> str:
+def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None) -> str:
     if not table:
-        return ('<tr><td colspan="13">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
+        return ('<tr><td colspan="14">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
                 'για βαθμολογία.</td></tr>')
+    team_acc = team_acc or {}
     rows = []
     for r in table:
         form_badges = "".join(
@@ -80,6 +81,9 @@ def _standings_table(table: list[dict], sim: dict) -> str:
             for f in r["form"]
         ) or "-"
         s = sim.get(r["team_id"], {})
+        acc = team_acc.get(r["team_id"], {})
+        acc_html = (f'{_fmt_pct(acc.get("pct"))} <span class="acc-n">({acc["total"]})</span>'
+                    if acc.get("total") else "-")
         row_class = ""
         if r["position"] <= 4:
             row_class = "zone-top4"
@@ -98,6 +102,7 @@ def _standings_table(table: list[dict], sim: dict) -> str:
           <td>{r["gd"]:+d}</td>
           <td class="points">{r["points"]}</td>
           <td>{form_badges}</td>
+          <td>{acc_html}</td>
           <td>{_fmt_pct(s.get("title_pct"))}</td>
           <td>{_fmt_pct(s.get("top4_pct"))}</td>
           <td>{_fmt_pct(s.get("relegation_pct"))}</td>
@@ -108,6 +113,7 @@ def _standings_table(table: list[dict], sim: dict) -> str:
 def build_section(section_id: str, label: str, season: int, matchday: int | None,
                    fixtures: list[dict], preds: list[dict], table: list[dict] | None = None,
                    accuracy: dict | None = None, sim: dict | None = None,
+                   team_accuracy: dict | None = None,
                    note: str | None = None, active: bool = False) -> str:
     """Χτίζει το περιεχόμενο ΜΙΑΣ καρτέλας (μία σεζόν). Καλείται μία φορά ανά
     σεζόν (τρέχουσα + ιστορικές) και οι καρτέλες συνδυάζονται στο
@@ -120,7 +126,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     md_label = f"Αγωνιστική {matchday}" if matchday else "Τέλος σεζόν"
     fixtures_rows = _fixtures_table(fixtures, preds_by_match, teams)
     accuracy_html = _accuracy_html(accuracy)
-    standings_rows = _standings_table(table, sim)
+    standings_rows = _standings_table(table, sim, team_accuracy)
     note_html = f'<div class="note">{note}</div>' if note else ""
 
     fixtures_block = "" if fixtures_rows is None else f"""
@@ -148,12 +154,94 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
+          <th>Ακρίβεια μοντέλου</th>
           <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
     </thead>
     <tbody>
       {standings_rows}
     </tbody>
   </table>
+</section>"""
+
+
+def build_detail_section(section_id: str, label: str, season: int, matches: list[dict],
+                          preds_by_match: dict, active: bool = False) -> str:
+    """Αναλυτική καρτέλα: όλοι οι αγώνες της σεζόν, ομαδοποιημένοι ανά
+    αγωνιστική μέσα σε &lt;details&gt; (κλειστά εξ ορισμού) ώστε η σελίδα να
+    ανοίγει συμπαγής -- 380 αγώνες σε μία επίπεδη λίστα θα ήταν αδιάβαστοι."""
+    teams = db.team_names()
+
+    by_matchday: dict[int, list[dict]] = {}
+    for m in matches:
+        by_matchday.setdefault(m.get("matchday") or 0, []).append(m)
+
+    blocks = []
+    for md in sorted(by_matchday):
+        md_matches = sorted(by_matchday[md], key=lambda m: m.get("utc_date") or "")
+        rows = []
+        hits = total = 0
+        for m in md_matches:
+            home = teams.get(m["home_team_id"], {}).get("name", "?")
+            away = teams.get(m["away_team_id"], {}).get("name", "?")
+            date = _fmt_date(m.get("utc_date"))
+            p = preds_by_match.get(m["id"])
+            played = m.get("home_score") is not None and m.get("away_score") is not None
+
+            actual = f'{m["home_score"]}-{m["away_score"]}' if played else "-"
+            pred_outcome = None
+            if p:
+                pred_score = f'{int(p["predicted_home_score"])}-{int(p["predicted_away_score"])}'
+                ph, pd, pa = p["prob_home"], p["prob_draw"], p["prob_away"]
+                if ph >= pd and ph >= pa:
+                    pred_outcome = "H"
+                elif pa >= pd:
+                    pred_outcome = "A"
+                else:
+                    pred_outcome = "D"
+                pick = OUTCOME_LABELS.get(pred_outcome, "?")
+            else:
+                pred_score, pick = "-", "-"
+
+            mark = '<span class="mark mark-none">-</span>'
+            if played and p:
+                total += 1
+                actual_outcome = ("H" if m["home_score"] > m["away_score"] else
+                                   ("A" if m["home_score"] < m["away_score"] else "D"))
+                if actual_outcome == pred_outcome:
+                    hits += 1
+                    mark = '<span class="mark mark-ok">&#10003;</span>'
+                else:
+                    mark = '<span class="mark mark-bad">&#10007;</span>'
+
+            rows.append(f"""
+            <tr>
+              <td>{date}</td>
+              <td class="team">{home}</td>
+              <td class="team">{away}</td>
+              <td class="score">{actual}</td>
+              <td class="pick">{pick} ({pred_score})</td>
+              <td>{mark}</td>
+            </tr>""")
+
+        summary_acc = f" &middot; {hits}/{total} σωστά" if total else ""
+        blocks.append(f"""
+      <details>
+        <summary>Αγωνιστική {md}{summary_acc}</summary>
+        <table>
+          <thead>
+            <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
+                <th>Αποτέλεσμα</th><th>Πρόβλεψη</th><th>&#10003;</th></tr>
+          </thead>
+          <tbody>{"".join(rows)}</tbody>
+        </table>
+      </details>""")
+
+    display = "block" if active else "none"
+    body = "".join(blocks) if blocks else "<p>Δεν υπάρχουν αγώνες.</p>"
+    return f"""
+<section id="{section_id}" class="tab-panel" style="display:{display}">
+  <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν {season}-{season + 1}</div>
+  {body}
 </section>"""
 
 
@@ -195,6 +283,20 @@ _CSS = """
   .badge-L { background:#7f1d1d88; color:#f87171; }
   .note { background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
           margin-bottom:1rem; font-size:0.85rem; }
+  .acc-n { color:#5c7182; font-size:0.78rem; }
+  details { background:#132a3e; border-radius:8px; margin-bottom:0.6rem; overflow:hidden; }
+  summary { padding:0.6rem 1rem; cursor:pointer; color:#e0e6ed; font-weight:600;
+            font-size:0.88rem; list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  summary::before { content:'\\25B8'; display:inline-block; margin-right:0.5rem;
+                     transition:transform 0.15s; color:#4ade80; }
+  details[open] summary::before { transform:rotate(90deg); }
+  details table { border-radius:0; font-size:0.85rem; }
+  details th { font-size:0.68rem; }
+  .mark { font-weight:700; }
+  .mark-ok { color:#4ade80; }
+  .mark-bad { color:#f87171; }
+  .mark-none { color:#5c7182; }
   footer { margin-top:2rem; color:#5c7182; font-size:0.8rem; }
 """
 
