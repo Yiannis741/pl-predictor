@@ -1,0 +1,48 @@
+# pl-predictor
+
+Παρακολουθεί την Premier League μέσω [football-data.org](https://www.football-data.org/)
+και προβλέπει τα αποτελέσματα της επόμενης αγωνιστικής με στατιστικό μοντέλο Poisson.
+
+## Δομή
+
+```
+update.py            Κύριο script (fetch -> db -> προβλέψεις -> html)
+src/config.py         Ρυθμίσεις, διαβάζει το .env
+src/api_client.py      Client για το football-data.org
+src/db.py              Αποθήκευση σε SQLite (data/pl_predictor.db)
+src/predictor.py       Μοντέλο πρόβλεψης Poisson
+src/render.py           Παράγει το output/index.html
+update_and_push.bat     Τρέχει το update.py και κάνει commit/push (για το scheduled task)
+_bridge/                "Αγγελιαφόρος": εκτελεί εντολές στο μηχάνημα για λογαριασμό του Claude
+```
+
+## Πρώτη εγκατάσταση
+
+1. `python -m venv venv` και μετά `venv\Scripts\pip install -r requirements.txt`
+2. Αντίγραψε το `.env.example` σε `.env` και βάλε το token σου από το football-data.org
+   (υπάρχει ήδη ένα `.env` με το token που δόθηκε, δεν ανεβαίνει ποτέ στο GitHub).
+3. `python update.py` — φτιάχνει τη βάση, τραβάει αγώνες, παράγει `output/index.html`.
+
+## Πώς δουλεύει η πρόβλεψη
+
+Για κάθε ομάδα υπολογίζεται πόσα γκολ βάζει/δέχεται σε σχέση με τον μέσο όρο της
+διοργάνωσης (ξεχωριστά ως γηπεδούχος/φιλοξενούμενος). Ο πολλαπλασιασμός των δύο
+δυνάμεων δίνει το αναμενόμενο σκορ (λ) κάθε ομάδας για τον συγκεκριμένο αγώνα, και
+από εκεί χτίζεται πίνακας πιθανοτήτων Poisson για κάθε πιθανό σκορ. Αν η τρέχουσα
+σεζόν δεν έχει αρκετούς τελειωμένους αγώνες (π.χ. στην αρχή της σεζόν), το μοντέλο
+δανείζεται και δεδομένα από την προηγούμενη σεζόν.
+
+## Αυτόματο τρέξιμο
+
+Το `update_and_push.bat` τρέχει το `update.py` και μετά κάνει commit/push το
+αποτέλεσμα στο GitHub, ώστε το `output/index.html` να είναι πάντα ενημερωμένο.
+Έχει στηθεί ως καθημερινό Windows Scheduled Task με όνομα **"PL Predictor Daily
+Update"**. Μπορείς να το δεις/αλλάξεις από τον Task Scheduler των Windows.
+
+## Το bridge (_bridge)
+
+Ο φάκελος `_bridge` τρέχει έναν μικρό «αγγελιαφόρο»: παρακολουθεί το
+`_bridge/jobs/`, εκτελεί ό,τι εντολή βρει εκεί στα κανονικά Windows, και γράφει
+το αποτέλεσμα στο `_bridge/out/`. Έτσι ο Claude μπορεί να τρέχει `git`, `python`,
+`pip` κ.λπ. στο πραγματικό μηχάνημα χωρίς screenshots/κλικ. Τρέχει μόνο όσο είναι
+ανοιχτό το παράθυρο του `START_BRIDGE.bat` — κλείνοντάς το, σταματά αμέσως.
