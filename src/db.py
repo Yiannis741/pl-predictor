@@ -29,15 +29,20 @@ CREATE TABLE IF NOT EXISTS matches (
     winner TEXT
 );
 
+-- Μία γραμμή ΑΝΑ (αγώνας, μοντέλο) -- έτσι μπορούν να συνυπάρχουν οι
+-- προβλέψεις Poisson και Elo για τον ίδιο αγώνα, για σύγκριση.
 CREATE TABLE IF NOT EXISTS predictions (
-    match_id INTEGER PRIMARY KEY,
+    match_id INTEGER NOT NULL,
+    model TEXT NOT NULL,
     predicted_home_score REAL,
     predicted_away_score REAL,
     prob_home REAL,
     prob_draw REAL,
     prob_away REAL,
-    model TEXT,
-    generated_at TEXT
+    rating_home REAL,
+    rating_away REAL,
+    generated_at TEXT,
+    PRIMARY KEY (match_id, model)
 );
 """
 
@@ -252,10 +257,10 @@ def standings_and_form(season: int, form_length: int = 5) -> list[dict]:
     return result
 
 
-def accuracy_stats(season: int) -> dict:
+def accuracy_stats(season: int, model: str = "poisson") -> dict:
     """Πόσο συχνά η πρόβλεψή μας (πριν τον αγώνα) πέτυχε το σωστό
     αποτέλεσμα (1/Χ/2) ή το ακριβές σκορ, στους αγώνες της σεζόν που έχουν
-    ήδη τελειώσει.
+    ήδη τελειώσει, για το δοσμένο μοντέλο ("poisson" ή "elo").
 
     ΣΗΜΑΝΤΙΚΟ: η "σωστή πρόβλεψη" 1/Χ/2 κρίνεται από ποια από τις τρεις
     αθροισμένες πιθανότητες (prob_home/prob_draw/prob_away) ήταν η
@@ -271,14 +276,15 @@ def accuracy_stats(season: int) -> dict:
                       p.predicted_home_score, p.predicted_away_score,
                       p.prob_home, p.prob_draw, p.prob_away
                FROM matches m JOIN predictions p ON p.match_id = m.id
-               WHERE m.season=? AND m.status='FINISHED'
+               WHERE m.season=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
-            (season,),
+            (season, model),
         ).fetchall()
 
     total = len(rows)
     correct_result = 0
     exact_score = 0
+    exact_eligible = 0
     for r in rows:
         actual = "H" if r["home_score"] > r["away_score"] else (
             "A" if r["home_score"] < r["away_score"] else "D")
@@ -293,20 +299,24 @@ def accuracy_stats(season: int) -> dict:
 
         if actual == predicted:
             correct_result += 1
-        if (r["home_score"] == r["predicted_home_score"]
-                and r["away_score"] == r["predicted_away_score"]):
-            exact_score += 1
+        if r["predicted_home_score"] is not None:
+            exact_eligible += 1
+            if (r["home_score"] == r["predicted_home_score"]
+                    and r["away_score"] == r["predicted_away_score"]):
+                exact_score += 1
 
     return {
         "total": total,
         "correct_result": correct_result,
         "exact_score": exact_score,
         "result_pct": (correct_result / total * 100) if total else None,
-        "exact_pct": (exact_score / total * 100) if total else None,
+        # Το Elo δεν προβλέπει ακριβές σκορ (predicted_home_score=NULL) --
+        # None σημαίνει "δεν εφαρμόζεται", διαφορετικό από 0%.
+        "exact_pct": (exact_score / exact_eligible * 100) if exact_eligible else None,
     }
 
 
-def team_accuracy(season: int) -> dict[int, dict]:
+def team_accuracy(season: int, model: str = "poisson") -> dict[int, dict]:
     """Ποσοστό επιτυχίας του μοντέλου (σωστό 1/Χ/2) στους αγώνες κάθε
     ομάδας -- πιστώνεται και στις δύο ομάδες ενός αγώνα το ίδιο
     σωστό/λάθος, αφού η πρόβλεψη αφορά τον αγώνα συνολικά."""
@@ -315,9 +325,9 @@ def team_accuracy(season: int) -> dict[int, dict]:
             """SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score,
                       p.prob_home, p.prob_draw, p.prob_away
                FROM matches m JOIN predictions p ON p.match_id = m.id
-               WHERE m.season=? AND m.status='FINISHED'
+               WHERE m.season=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
-            (season,),
+            (season, model),
         ).fetchall()
 
     stats: dict[int, list[int]] = {}  # team_id -> [σωστές, σύνολο]
@@ -342,33 +352,40 @@ def team_accuracy(season: int) -> dict[int, dict]:
             for tid, (c, t) in stats.items()}
 
 
-def predictions_for_season(season: int) -> dict[int, dict]:
-    """Όλες οι αποθηκευμένες προβλέψεις της σεζόν, keyed by match_id -- για
-    την αναλυτική σελίδα αποτελεσμάτων (όχι μόνο η επόμενη αγωνιστική)."""
+def predictions_for_season(season: int, model: str = "poisson") -> dict[int, dict]:
+    """Όλες οι αποθηκευμένες προβλέψεις της σεζόν για ΕΝΑ μοντέλο, keyed by
+    match_id -- για την αναλυτική σελίδα αποτελεσμάτων (όχι μόνο η επόμενη
+    αγωνιστική)."""
     with connect() as conn:
         rows = conn.execute(
             """SELECT p.* FROM predictions p
                JOIN matches m ON m.id = p.match_id
-               WHERE m.season=?""",
-            (season,),
+               WHERE m.season=? AND p.model=?""",
+            (season, model),
         ).fetchall()
         return {r["match_id"]: dict(r) for r in rows}
 
 
 def save_predictions(preds: list[dict]) -> None:
+    """Κάθε dict στο preds πρέπει να έχει "match_id" και "model"
+    ("poisson"/"elo"). Το predicted_home_score/away_score είναι
+    προαιρετικά (το Elo δεν προβλέπει σκορ, μόνο 1/Χ/2)."""
     with connect() as conn:
         for p in preds:
             conn.execute(
-                """INSERT INTO predictions (match_id, predicted_home_score,
+                """INSERT INTO predictions (match_id, model, predicted_home_score,
                        predicted_away_score, prob_home, prob_draw, prob_away,
-                       model, generated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                   ON CONFLICT(match_id) DO UPDATE SET
+                       rating_home, rating_away, generated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                   ON CONFLICT(match_id, model) DO UPDATE SET
                      predicted_home_score=excluded.predicted_home_score,
                      predicted_away_score=excluded.predicted_away_score,
                      prob_home=excluded.prob_home, prob_draw=excluded.prob_draw,
-                     prob_away=excluded.prob_away, model=excluded.model,
+                     prob_away=excluded.prob_away, rating_home=excluded.rating_home,
+                     rating_away=excluded.rating_away,
                      generated_at=excluded.generated_at""",
-                (p["match_id"], p["predicted_home_score"], p["predicted_away_score"],
-                 p["prob_home"], p["prob_draw"], p["prob_away"], p.get("model", "poisson")),
+                (p["match_id"], p.get("model", "poisson"),
+                 p.get("predicted_home_score"), p.get("predicted_away_score"),
+                 p["prob_home"], p["prob_draw"], p["prob_away"],
+                 p.get("rating_home"), p.get("rating_away")),
             )

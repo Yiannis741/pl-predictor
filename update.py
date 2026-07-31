@@ -18,7 +18,7 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src import config, db, predictor, render, simulate  # noqa: E402
+from src import config, db, elo, predictor, render, simulate  # noqa: E402
 from src.api_client import FootballDataClient  # noqa: E402
 
 # Αν η τρέχουσα σεζόν έχει λιγότερους τελειωμένους αγώνες από αυτό το όριο
@@ -69,6 +69,9 @@ def main() -> None:
         print("Δεν βρέθηκαν αρκετά τελειωμένα ματς για μοντέλο πρόβλεψης. Σταματάω.")
         return
 
+    finished_sorted = sorted(finished, key=lambda m: m.get("utc_date") or "")
+    ratings = elo.compute_ratings(finished_sorted)
+
     matchday, fixtures = db.next_matchday_fixtures(season)
     preds = []
     if matchday is None:
@@ -77,17 +80,21 @@ def main() -> None:
         print(f"Προβλέψεις για αγωνιστική {matchday} ({len(fixtures)} αγώνες)...")
         for m in fixtures:
             pred = predictor.predict_match(model, m["home_team_id"], m["away_team_id"])
-            preds.append({"match_id": m["id"], **pred})
+            preds.append({"match_id": m["id"], "model": "poisson", **pred})
+            epred = elo.predict_match(ratings, m["home_team_id"], m["away_team_id"])
+            preds.append({"match_id": m["id"], "model": "elo", **epred})
         db.save_predictions(preds)
 
     print("Υπολογισμός βαθμολογίας/φόρμας...")
     table = db.standings_and_form(season)
 
-    print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων...")
-    accuracy = db.accuracy_stats(season)
-    team_accuracy = db.team_accuracy(season)
+    print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων (Poisson & Elo)...")
+    accuracy = db.accuracy_stats(season, model="poisson")
+    team_accuracy = db.team_accuracy(season, model="poisson")
+    elo_accuracy = db.accuracy_stats(season, model="elo")
+    elo_team_accuracy = db.team_accuracy(season, model="elo")
 
-    print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές)...")
+    print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές, μοντέλο Poisson)...")
     all_matches = db.season_matches(season)
     sim = simulate.simulate_season(model, all_matches, season)
 
@@ -98,6 +105,7 @@ def main() -> None:
         "html": render.build_section(
             "current", current_label, season, matchday, fixtures, preds,
             table=table, accuracy=accuracy, sim=sim, team_accuracy=team_accuracy,
+            elo_accuracy=elo_accuracy, elo_team_accuracy=elo_team_accuracy,
             active=True,
         ),
     }]
@@ -106,7 +114,8 @@ def main() -> None:
         "label": f"Αναλυτικά {season}-{season + 1}",
         "html": render.build_detail_section(
             "detail-current", f"Αναλυτικά {season}-{season + 1}", season,
-            all_matches, db.predictions_for_season(season),
+            all_matches, db.predictions_for_season(season, model="poisson"),
+            db.predictions_for_season(season, model="elo"),
         ),
     }]
 
@@ -118,14 +127,17 @@ def main() -> None:
         if not hist_matches:
             continue
         hist_table = db.standings_and_form(hist_season)
-        hist_accuracy = db.accuracy_stats(hist_season)
-        hist_team_accuracy = db.team_accuracy(hist_season)
+        hist_accuracy = db.accuracy_stats(hist_season, model="poisson")
+        hist_team_accuracy = db.team_accuracy(hist_season, model="poisson")
+        hist_elo_accuracy = db.accuracy_stats(hist_season, model="elo")
+        hist_elo_team_accuracy = db.team_accuracy(hist_season, model="elo")
         if not hist_table:
             continue
 
         # Προσομοίωση "πριν την 1η αγωνιστική" γι' αυτή τη σεζόν, βασισμένη
         # στην ΠΡΟΗΓΟΥΜΕΝΗ της (αν υπάρχει ήδη τοπικά -- δεν κάνουμε κλήση
-        # στο API εδώ).
+        # στο API εδώ). Μόνο για Poisson -- το Elo δεν παράγει αναμενόμενα
+        # γκολ, οπότε δεν τροφοδοτεί την προσομοίωση Monte Carlo.
         prev_hist = db.finished_matches(hist_season - 1)
         hist_sim = {}
         if prev_hist:
@@ -143,9 +155,10 @@ def main() -> None:
             "html": render.build_section(
                 hist_id, hist_label, hist_season, None, [], [], table=hist_table,
                 accuracy=hist_accuracy, sim=hist_sim, team_accuracy=hist_team_accuracy,
+                elo_accuracy=hist_elo_accuracy, elo_team_accuracy=hist_elo_team_accuracy,
                 note="Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε "
                      "το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. "
-                     "= τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική.",
+                     "= τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.",
             ),
         })
         detail_id = f"detail-{hist_season}"
@@ -155,7 +168,8 @@ def main() -> None:
             "label": detail_label,
             "html": render.build_detail_section(
                 detail_id, detail_label, hist_season, hist_matches,
-                db.predictions_for_season(hist_season),
+                db.predictions_for_season(hist_season, model="poisson"),
+                db.predictions_for_season(hist_season, model="elo"),
             ),
         })
 

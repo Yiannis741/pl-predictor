@@ -21,6 +21,9 @@
   σχόλια στο src/predictor.py για τα τελευταία νούμερα -- ξανάτρεξε το
   script για να τα επιβεβαιώσεις ή να τα ξαναβρείς αν προστεθούν άλλες
   σεζόν δεδομένων.
+
+  Φάση 3/4 -- Elo K / HOME_ADV / DRAW_D / DRAW_S: βλ. σχόλια στο
+  src/elo.py για τα τελευταία νούμερα.
 """
 
 import sys
@@ -31,11 +34,14 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src import db, predictor  # noqa: E402
+from src import db, elo, predictor  # noqa: E402
 
 # Ζευγάρια (σεζόν-στόχος, προηγούμενη σεζόν) που χρησιμοποιούνται για το
-# grid-search. Πρέπει να έχουν ήδη περάσει από backtest.py.
-EVAL_PAIRS = [(2024, 2023), (2025, 2024)]
+# grid-search. Πρέπει να έχουν ήδη περάσει από backtest.py. Η 2022 δεν είναι
+# διαθέσιμη στο δωρεάν πλάνο (403), οπότε η 2023 συμμετέχει χωρίς "βάση"
+# από προηγούμενη σεζόν -- οι πρώτες της αγωνιστικές θα είναι πιο αδύναμο
+# σήμα, αλλά προσθέτει ~370 επιπλέον αγώνες στο grid-search.
+EVAL_PAIRS = [(2023, 2022), (2024, 2023), (2025, 2024)]
 
 
 def evaluate(season: int, prev_season: int, half_life: float, rho: float,
@@ -73,6 +79,80 @@ def evaluate(season: int, prev_season: int, half_life: float, rho: float,
                     and m["away_score"] == pred["predicted_away_score"]):
                 exact += 1
     return correct, exact, total
+
+
+def evaluate_elo(season: int, prev_season: int, k: float, home_adv: float,
+                  draw_d: float, draw_s: float) -> tuple[int, int]:
+    elo.K = k
+    elo.HOME_ADV = home_adv
+    elo.DRAW_D = draw_d
+    elo.DRAW_S = draw_s
+
+    matchdays = db.distinct_matchdays(season)
+    correct = total = 0
+    for md in matchdays:
+        fixtures = db.matchday_matches(season, md)
+        fixtures = [f for f in fixtures if f.get("home_team_id") and f.get("away_team_id")
+                    and f.get("home_score") is not None and f.get("away_score") is not None]
+        if not fixtures:
+            continue
+        dates = [f["utc_date"] for f in fixtures if f.get("utc_date")]
+        if not dates:
+            continue
+        cutoff = min(dates)
+        history = db.finished_matches_before([season, prev_season], cutoff)
+        history_sorted = sorted(history, key=lambda m: m.get("utc_date") or "")
+        ratings = elo.compute_ratings(history_sorted)
+        for m in fixtures:
+            pred = elo.predict_match(ratings, m["home_team_id"], m["away_team_id"])
+            actual = "H" if m["home_score"] > m["away_score"] else (
+                "A" if m["home_score"] < m["away_score"] else "D")
+            total += 1
+            if pred["predicted_outcome"] == actual:
+                correct += 1
+    return correct, total
+
+
+def _run_grid_elo(label: str, combos, key_names) -> list[tuple]:
+    print(f"\n== {label} ==")
+    results = []
+    for combo in combos:
+        c = t = 0
+        for season, prev in EVAL_PAIRS:
+            dc, dt = evaluate_elo(season, prev, *combo)
+            c, t = c + dc, t + dt
+        if t == 0:
+            print("Δεν βρέθηκαν δεδομένα -- τρέξε πρώτα backtest.py για τις σεζόν "
+                  f"{EVAL_PAIRS}.")
+            return []
+        pct = c / t * 100
+        results.append((*combo, pct, t))
+        combo_str = "  ".join(f"{k}={v}" for k, v in zip(key_names, combo))
+        print(f"{combo_str}  correct={pct:5.1f}%  n={t}")
+
+    results.sort(key=lambda r: -r[-2])
+    print(f"-- TOP 5 ({label}) --")
+    for r in results[:5]:
+        print(r)
+    return results
+
+
+def phase3_elo_k_homeadv() -> tuple[float, float]:
+    ks = [10.0, 15.0, 20.0, 25.0, 30.0, 40.0]
+    home_advs = [30.0, 50.0, 70.0, 90.0, 110.0]
+    combos = [(k, ha, 50.0, 300.0) for k in ks for ha in home_advs]
+    results = _run_grid_elo("Φάση 3: Elo K x HOME_ADV (draw_d=50, draw_s=300 σταθερά)",
+                             combos, ["K", "home_adv", "draw_d", "draw_s"])
+    best = results[0]
+    return best[0], best[1]
+
+
+def phase4_elo_draw_buffer(k: float, home_adv: float) -> None:
+    draw_ds = [0.0, 25.0, 50.0, 75.0, 100.0, 125.0]
+    draw_ss = [150.0, 200.0, 250.0, 300.0, 400.0, 500.0]
+    combos = [(k, home_adv, dd, ds) for dd in draw_ds for ds in draw_ss]
+    _run_grid_elo(f"Φάση 4: Elo DRAW_D x DRAW_S [K={k}, home_adv={home_adv}]",
+                  combos, ["K", "home_adv", "draw_d", "draw_s"])
 
 
 def _run_grid(label: str, combos, key_names) -> list[tuple]:
@@ -127,6 +207,9 @@ def main() -> None:
     # -0.10 είναι μέσα στο στατιστικό θόρυβο (n=760, ~1.8% τυπικό σφάλμα),
     # και το -0.10 δίνει σταθερά καλύτερο % ακριβούς σκορ.
     phase2_shrinkage_promoted(365.0, -0.10)
+
+    best_k, best_ha = phase3_elo_k_homeadv()
+    phase4_elo_draw_buffer(best_k, best_ha)
 
     print("\n== σύγκριση: πάντα πρόβλεψη νίκης γηπεδούχου ==")
     for season, _prev in EVAL_PAIRS:

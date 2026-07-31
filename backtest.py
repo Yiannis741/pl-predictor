@@ -27,7 +27,7 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src import config, db, predictor, render, simulate  # noqa: E402
+from src import config, db, elo, predictor, render, simulate  # noqa: E402
 from src.api_client import FootballDataClient  # noqa: E402
 from update import current_season_year  # noqa: E402
 
@@ -88,10 +88,18 @@ def run_backtest(season: int) -> None:
         if model is None:
             continue
 
+        # Το Elo θέλει τους αγώνες σε ΧΡΟΝΟΛΟΓΙΚΗ σειρά -- τους ξαναπαίζει
+        # έναν-έναν για να φτάσει στο τρέχον rating κάθε ομάδας.
+        history_sorted = sorted(history, key=lambda m: m.get("utc_date") or "")
+        ratings = elo.compute_ratings(history_sorted)
+
         preds = []
         for m in fixtures:
             pred = predictor.predict_match(model, m["home_team_id"], m["away_team_id"])
-            preds.append({"match_id": m["id"], **pred})
+            preds.append({"match_id": m["id"], "model": "poisson", **pred})
+
+            epred = elo.predict_match(ratings, m["home_team_id"], m["away_team_id"])
+            preds.append({"match_id": m["id"], "model": "elo", **epred})
         db.save_predictions(preds)
 
         if md % 5 == 0 or md == matchdays[-1]:
@@ -99,7 +107,10 @@ def run_backtest(season: int) -> None:
 
     print("Υπολογισμός τελικής βαθμολογίας και ακρίβειας σε όλη τη σεζόν...")
     table = db.standings_and_form(season)
-    accuracy = db.accuracy_stats(season)
+    accuracy = db.accuracy_stats(season, model="poisson")
+    elo_accuracy = db.accuracy_stats(season, model="elo")
+    team_accuracy = db.team_accuracy(season, model="poisson")
+    elo_team_accuracy = db.team_accuracy(season, model="elo")
 
     sim = {}
     if preseason_model is not None:
@@ -118,13 +129,18 @@ def run_backtest(season: int) -> None:
 
     out_path = render.render_report(
         season, None, [], [], table=table, accuracy=accuracy, sim=sim,
+        team_accuracy=team_accuracy, elo_accuracy=elo_accuracy,
+        elo_team_accuracy=elo_team_accuracy,
         out_filename=f"backtest_{season}.html", note=note,
     )
     print(f"Ολοκληρώθηκε. Δες το {out_path}")
     if accuracy.get("total"):
-        print(f"Ακρίβεια σε {accuracy['total']} αγώνες όλης της σεζόν: "
-              f"{accuracy['result_pct']:.0f}% σωστό αποτέλεσμα (1/Χ/2), "
+        print(f"Poisson σε {accuracy['total']} αγώνες: "
+              f"{accuracy['result_pct']:.0f}% σωστό αποτέλεσμα, "
               f"{accuracy['exact_pct']:.0f}% ακριβές σκορ")
+    if elo_accuracy.get("total"):
+        print(f"Elo σε {elo_accuracy['total']} αγώνες: "
+              f"{elo_accuracy['result_pct']:.0f}% σωστό αποτέλεσμα")
 
 
 if __name__ == "__main__":

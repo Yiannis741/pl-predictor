@@ -28,14 +28,17 @@ def _fmt_date(iso_str: str | None) -> str:
         return iso_str
 
 
-def _fixtures_table(fixtures: list[dict], preds_by_match: dict, teams: dict) -> str | None:
+def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
+                     elo_preds_by_match: dict, teams: dict) -> str | None:
     if not fixtures:
         return None
+    elo_preds_by_match = elo_preds_by_match or {}
     rows_html = []
     for m in fixtures:
         home = teams.get(m["home_team_id"], {}).get("name", "?")
         away = teams.get(m["away_team_id"], {}).get("name", "?")
         p = preds_by_match.get(m["id"])
+        ep = elo_preds_by_match.get(m["id"])
         date = _fmt_date(m.get("utc_date"))
         if p:
             pick_letter = OUTCOME_LABELS.get(p.get("predicted_outcome"), "?")
@@ -47,6 +50,12 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict, teams: dict) -> 
             xg = f'{p["lambda_home"]:.1f} &ndash; {p["lambda_away"]:.1f}'
         else:
             pick, score, probs, xg = "-", "-", "-", "-"
+        if ep:
+            elo_letter = OUTCOME_LABELS.get(ep.get("predicted_outcome"), "?")
+            elo_conf = max(ep["prob_home"], ep["prob_draw"], ep["prob_away"])
+            elo_pick = f'{elo_letter} ({_fmt_pct(elo_conf * 100)})'
+        else:
+            elo_pick = "-"
         rows_html.append(f"""
         <tr>
           <td>{date}</td>
@@ -56,24 +65,35 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict, teams: dict) -> 
           <td class="score">{score}</td>
           <td class="xg">{xg}</td>
           <td class="probs">{probs}</td>
+          <td class="pick pick-elo">{elo_pick}</td>
         </tr>""")
     return "".join(rows_html)
 
 
-def _accuracy_html(accuracy: dict | None) -> str:
+def _one_model_accuracy_html(label: str, accuracy: dict | None) -> str:
     if not accuracy or not accuracy.get("total"):
-        return ('<div class="accuracy">Ακρίβεια μοντέλου: δεν υπάρχουν ακόμα '
-                'τελειωμένοι αγώνες φέτος για αξιολόγηση.</div>')
-    return (f'<div class="accuracy">Ακρίβεια μοντέλου (σε {accuracy["total"]} '
-            f'αγώνες): <b>{_fmt_pct(accuracy["result_pct"])}</b> σωστή πρόβλεψη 1/Χ/2 '
-            f'&middot; <b>{_fmt_pct(accuracy["exact_pct"])}</b> ακριβές σκορ</div>')
+        return f'{label}: δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για αξιολόγηση.'
+    exact = (f' &middot; <b>{_fmt_pct(accuracy["exact_pct"])}</b> ακριβές σκορ'
+             if accuracy.get("exact_pct") is not None else "")
+    return (f'{label} (σε {accuracy["total"]} αγώνες): '
+            f'<b>{_fmt_pct(accuracy["result_pct"])}</b> σωστή πρόβλεψη 1/Χ/2{exact}')
 
 
-def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None) -> str:
+def _accuracy_html(accuracy: dict | None, elo_accuracy: dict | None = None) -> str:
+    lines = [_one_model_accuracy_html("Poisson", accuracy)]
+    if elo_accuracy is not None:
+        lines.append(_one_model_accuracy_html("Elo", elo_accuracy))
+    return '<div class="accuracy">' + '<br>'.join(lines) + '</div>'
+
+
+def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
+                      elo_team_acc: dict | None = None) -> str:
+    n_cols = 15 if elo_team_acc is not None else 14
     if not table:
-        return ('<tr><td colspan="14">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
+        return (f'<tr><td colspan="{n_cols}">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
                 'για βαθμολογία.</td></tr>')
     team_acc = team_acc or {}
+    elo_team_acc = elo_team_acc or {}
     rows = []
     for r in table:
         form_badges = "".join(
@@ -84,6 +104,12 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None)
         acc = team_acc.get(r["team_id"], {})
         acc_html = (f'{_fmt_pct(acc.get("pct"))} <span class="acc-n">({acc["total"]})</span>'
                     if acc.get("total") else "-")
+        elo_acc_cell = ""
+        if elo_team_acc is not None:
+            eacc = elo_team_acc.get(r["team_id"], {})
+            eacc_html = (f'{_fmt_pct(eacc.get("pct"))} <span class="acc-n">({eacc["total"]})</span>'
+                         if eacc.get("total") else "-")
+            elo_acc_cell = f'<td>{eacc_html}</td>'
         row_class = ""
         if r["position"] <= 4:
             row_class = "zone-top4"
@@ -103,6 +129,7 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None)
           <td class="points">{r["points"]}</td>
           <td>{form_badges}</td>
           <td>{acc_html}</td>
+          {elo_acc_cell}
           <td>{_fmt_pct(s.get("title_pct"))}</td>
           <td>{_fmt_pct(s.get("top4_pct"))}</td>
           <td>{_fmt_pct(s.get("relegation_pct"))}</td>
@@ -113,34 +140,42 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None)
 def build_section(section_id: str, label: str, season: int, matchday: int | None,
                    fixtures: list[dict], preds: list[dict], table: list[dict] | None = None,
                    accuracy: dict | None = None, sim: dict | None = None,
-                   team_accuracy: dict | None = None,
+                   team_accuracy: dict | None = None, elo_accuracy: dict | None = None,
+                   elo_team_accuracy: dict | None = None,
                    note: str | None = None, active: bool = False) -> str:
     """Χτίζει το περιεχόμενο ΜΙΑΣ καρτέλας (μία σεζόν). Καλείται μία φορά ανά
     σεζόν (τρέχουσα + ιστορικές) και οι καρτέλες συνδυάζονται στο
-    render_site() παρακάτω."""
+    render_site() παρακάτω. Το preds μπορεί να περιέχει προβλέψεις και από
+    τα δύο μοντέλα (poisson/elo) -- ξεχωρίζουν εδώ με βάση το "model"."""
     teams = db.team_names()
-    preds_by_match = {p["match_id"]: p for p in preds}
+    preds_by_match = {p["match_id"]: p for p in preds if p.get("model", "poisson") == "poisson"}
+    elo_preds_by_match = {p["match_id"]: p for p in preds if p.get("model") == "elo"}
     table = table or []
     sim = sim or {}
+    show_elo = elo_accuracy is not None or elo_team_accuracy is not None or elo_preds_by_match
 
     md_label = f"Αγωνιστική {matchday}" if matchday else "Τέλος σεζόν"
-    fixtures_rows = _fixtures_table(fixtures, preds_by_match, teams)
-    accuracy_html = _accuracy_html(accuracy)
-    standings_rows = _standings_table(table, sim, team_accuracy)
+    fixtures_rows = _fixtures_table(fixtures, preds_by_match, elo_preds_by_match, teams)
+    accuracy_html = _accuracy_html(accuracy, elo_accuracy if show_elo else None)
+    standings_rows = _standings_table(table, sim, team_accuracy,
+                                       elo_team_accuracy if show_elo else None)
     note_html = f'<div class="note">{note}</div>' if note else ""
 
+    elo_th = '<th>Πρόβλεψη Elo</th>' if show_elo else ""
     fixtures_block = "" if fixtures_rows is None else f"""
   <h3>{md_label}</h3>
   <table>
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
-          <th>Πρόβλεψη</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th><th>1 / Χ / 2</th></tr>
+          <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
+          <th>1 / Χ / 2</th>{elo_th}</tr>
     </thead>
     <tbody>
       {fixtures_rows}
     </tbody>
   </table>"""
 
+    elo_acc_th = '<th>Ακρίβεια Elo</th>' if show_elo else ""
     display = "block" if active else "none"
     return f"""
 <section id="{section_id}" class="tab-panel" style="display:{display}">
@@ -154,7 +189,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
-          <th>Ακρίβεια μοντέλου</th>
+          <th>Ακρίβεια Poisson</th>{elo_acc_th}
           <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
     </thead>
     <tbody>
@@ -164,12 +199,36 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
 </section>"""
 
 
+def _pred_pick(p: dict | None) -> tuple[str, str | None]:
+    """(κείμενο pick, outcome-γράμμα) από ένα prediction row -- λειτουργεί
+    και για Poisson (έχει predicted_home_score) και για Elo (δεν έχει)."""
+    if not p:
+        return "-", None
+    ph, pd, pa = p["prob_home"], p["prob_draw"], p["prob_away"]
+    if ph >= pd and ph >= pa:
+        outcome = "H"
+    elif pa >= pd:
+        outcome = "A"
+    else:
+        outcome = "D"
+    letter = OUTCOME_LABELS.get(outcome, "?")
+    if p.get("predicted_home_score") is not None:
+        score = f'{int(p["predicted_home_score"])}-{int(p["predicted_away_score"])}'
+        return f"{letter} ({score})", outcome
+    return letter, outcome
+
+
 def build_detail_section(section_id: str, label: str, season: int, matches: list[dict],
-                          preds_by_match: dict, active: bool = False) -> str:
+                          preds_by_match: dict, elo_preds_by_match: dict | None = None,
+                          active: bool = False) -> str:
     """Αναλυτική καρτέλα: όλοι οι αγώνες της σεζόν, ομαδοποιημένοι ανά
     αγωνιστική μέσα σε &lt;details&gt; (κλειστά εξ ορισμού) ώστε η σελίδα να
-    ανοίγει συμπαγής -- 380 αγώνες σε μία επίπεδη λίστα θα ήταν αδιάβαστοι."""
+    ανοίγει συμπαγής -- 380 αγώνες σε μία επίπεδη λίστα θα ήταν αδιάβαστοι.
+    Δείχνει τις προβλέψεις ΚΑΙ των δύο μοντέλων δίπλα-δίπλα, αν δοθεί
+    elo_preds_by_match."""
     teams = db.team_names()
+    elo_preds_by_match = elo_preds_by_match or {}
+    show_elo = bool(elo_preds_by_match)
 
     by_matchday: dict[int, list[dict]] = {}
     for m in matches:
@@ -185,52 +244,53 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
             away = teams.get(m["away_team_id"], {}).get("name", "?")
             date = _fmt_date(m.get("utc_date"))
             p = preds_by_match.get(m["id"])
+            ep = elo_preds_by_match.get(m["id"])
             played = m.get("home_score") is not None and m.get("away_score") is not None
 
             actual = f'{m["home_score"]}-{m["away_score"]}' if played else "-"
-            pred_outcome = None
-            if p:
-                pred_score = f'{int(p["predicted_home_score"])}-{int(p["predicted_away_score"])}'
-                ph, pd, pa = p["prob_home"], p["prob_draw"], p["prob_away"]
-                if ph >= pd and ph >= pa:
-                    pred_outcome = "H"
-                elif pa >= pd:
-                    pred_outcome = "A"
-                else:
-                    pred_outcome = "D"
-                pick = OUTCOME_LABELS.get(pred_outcome, "?")
-            else:
-                pred_score, pick = "-", "-"
+            pick, pred_outcome = _pred_pick(p)
+            elo_pick, elo_outcome = _pred_pick(ep)
 
             mark = '<span class="mark mark-none">-</span>'
-            if played and p:
-                total += 1
+            elo_mark = '<span class="mark mark-none">-</span>'
+            if played:
                 actual_outcome = ("H" if m["home_score"] > m["away_score"] else
                                    ("A" if m["home_score"] < m["away_score"] else "D"))
-                if actual_outcome == pred_outcome:
-                    hits += 1
-                    mark = '<span class="mark mark-ok">&#10003;</span>'
-                else:
-                    mark = '<span class="mark mark-bad">&#10007;</span>'
+                if p:
+                    total += 1
+                    if actual_outcome == pred_outcome:
+                        hits += 1
+                        mark = '<span class="mark mark-ok">&#10003;</span>'
+                    else:
+                        mark = '<span class="mark mark-bad">&#10007;</span>'
+                if ep:
+                    if actual_outcome == elo_outcome:
+                        elo_mark = '<span class="mark mark-ok">&#10003;</span>'
+                    else:
+                        elo_mark = '<span class="mark mark-bad">&#10007;</span>'
 
+            elo_cells = (f'<td class="pick pick-elo">{elo_pick}</td><td>{elo_mark}</td>'
+                         if show_elo else "")
             rows.append(f"""
             <tr>
               <td>{date}</td>
               <td class="team">{home}</td>
               <td class="team">{away}</td>
               <td class="score">{actual}</td>
-              <td class="pick">{pick} ({pred_score})</td>
+              <td class="pick">{pick}</td>
               <td>{mark}</td>
+              {elo_cells}
             </tr>""")
 
-        summary_acc = f" &middot; {hits}/{total} σωστά" if total else ""
+        summary_acc = f" &middot; Poisson {hits}/{total} σωστά" if total else ""
+        elo_th = '<th>Elo</th><th>&#10003;</th>' if show_elo else ""
         blocks.append(f"""
       <details>
         <summary>Αγωνιστική {md}{summary_acc}</summary>
         <table>
           <thead>
             <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
-                <th>Αποτέλεσμα</th><th>Πρόβλεψη</th><th>&#10003;</th></tr>
+                <th>Αποτέλεσμα</th><th>Poisson</th><th>&#10003;</th>{elo_th}</tr>
           </thead>
           <tbody>{"".join(rows)}</tbody>
         </table>
@@ -270,6 +330,7 @@ _CSS = """
   tr:nth-child(even) { background:#0f2436; }
   .team { font-weight:600; color:#fff; text-align:left; }
   .pick { font-weight:700; color:#facc15; }
+  .pick-elo { color:#60a5fa; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
@@ -337,9 +398,13 @@ def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
   <div class="generated">ενημερώθηκε {generated}</div>
   <nav>{nav_buttons}</nav>
   {panels}
-  <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson με στάθμιση
-    πρόσφατης φόρμας και διόρθωση Dixon-Coles &middot; Προσομοίωση τελικής
-    βαθμολογίας: Monte Carlo, χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+  <footer>Δεδομένα: football-data.org &middot; Δύο μοντέλα πρόβλεψης:
+    <span style="color:#facc15">Poisson</span> (μέσοι όροι γκολ με στάθμιση
+    πρόσφατης φόρμας + διόρθωση Dixon-Coles) και
+    <span style="color:#60a5fa">Elo</span> (rating που ενημερώνεται
+    αγώνα-αγώνα, πιο ευαίσθητο σε ξαφνικές αλλαγές φόρμας) &middot;
+    Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο Poisson,
+    χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
   <script>{_JS}</script>
 </body>
 </html>"""
@@ -353,11 +418,14 @@ def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
 def render_report(season: int, matchday: int | None, fixtures: list[dict],
                    preds: list[dict], table: list[dict] | None = None,
                    accuracy: dict | None = None, sim: dict | None = None,
+                   team_accuracy: dict | None = None, elo_accuracy: dict | None = None,
+                   elo_team_accuracy: dict | None = None,
                    out_filename: str = "index.html", note: str | None = None) -> str:
     """Σελίδα με μία μόνο καρτέλα (χρησιμοποιείται από το backtest.py για
     γρήγορο, αυτόνομο έλεγχο μιας σεζόν)."""
     section = build_section("season", f"Σεζόν {season}-{season + 1}", season, matchday,
                              fixtures, preds, table=table, accuracy=accuracy, sim=sim,
-                             note=note, active=True)
+                             team_accuracy=team_accuracy, elo_accuracy=elo_accuracy,
+                             elo_team_accuracy=elo_team_accuracy, note=note, active=True)
     return render_site([{"id": "season", "label": f"Σεζόν {season}-{season + 1}",
                           "html": section}], out_filename=out_filename)

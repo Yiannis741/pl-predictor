@@ -29,6 +29,7 @@
   tr:nth-child(even) { background:#0f2436; }
   .team { font-weight:600; color:#fff; text-align:left; }
   .pick { font-weight:700; color:#facc15; }
+  .pick-elo { color:#60a5fa; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
@@ -61,13 +62,13 @@
 </head>
 <body>
   <h1>Premier League &mdash; Προβλέψεις</h1>
-  <div class="generated">ενημερώθηκε 31/07/2026 11:20</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 12:12</div>
   <nav><button data-target="season" class="active" onclick="showTab('season')">Σεζόν 2024-2025</button></nav>
   
 <section id="season" class="tab-panel" style="display:block">
   <div class="meta">Σεζόν 2024-2025</div>
   <div class="note">Backtest: αναπαραγωγή της σεζόν 2024-2025 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση (γι' αυτό μπορεί να δείχνουν υπερβολικά σίγουρες τιμές όπως 100% — έχουν μόνο ένα έτος δεδομένων να στηριχτούν) — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
-  <div class="accuracy">Ακρίβεια μοντέλου (σε 380 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>13%</b> ακριβές σκορ</div>
+  <div class="accuracy">Poisson (σε 380 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>13%</b> ακριβές σκορ<br>Elo (σε 380 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
   <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
@@ -75,7 +76,7 @@
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
-          <th>Ακρίβεια μοντέλου</th>
+          <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
           <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
     </thead>
     <tbody>
@@ -92,7 +93,8 @@
           <td>+45</td>
           <td class="points">84</td>
           <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>63% <span class="acc-n">(38)</span></td>
+          <td>66% <span class="acc-n">(38)</span></td>
           <td>100%</td>
           <td>100%</td>
           <td>0%</td>
@@ -109,7 +111,8 @@
           <td>+35</td>
           <td class="points">74</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
-          <td>-</td>
+          <td>53% <span class="acc-n">(38)</span></td>
+          <td>53% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>100%</td>
           <td>0%</td>
@@ -126,7 +129,8 @@
           <td>+28</td>
           <td class="points">71</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>61% <span class="acc-n">(38)</span></td>
+          <td>63% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>100%</td>
           <td>0%</td>
@@ -143,7 +147,8 @@
           <td>+21</td>
           <td class="points">69</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>58% <span class="acc-n">(38)</span></td>
+          <td>61% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>100%</td>
           <td>0%</td>
@@ -160,7 +165,8 @@
           <td>+21</td>
           <td class="points">66</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>63% <span class="acc-n">(38)</span></td>
+          <td>61% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -177,7 +183,8 @@
           <td>+7</td>
           <td class="points">66</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>50% <span class="acc-n">(38)</span></td>
+          <td>61% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -194,7 +201,8 @@
           <td>+12</td>
           <td class="points">65</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>42% <span class="acc-n">(38)</span></td>
+          <td>50% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -211,7 +219,8 @@
           <td>+7</td>
           <td class="points">61</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>32% <span class="acc-n">(38)</span></td>
+          <td>34% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -228,7 +237,8 @@
           <td>+12</td>
           <td class="points">56</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span></td>
-          <td>-</td>
+          <td>37% <span class="acc-n">(38)</span></td>
+          <td>37% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -245,7 +255,8 @@
           <td>+9</td>
           <td class="points">56</td>
           <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>63% <span class="acc-n">(38)</span></td>
+          <td>50% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -262,7 +273,8 @@
           <td>+0</td>
           <td class="points">54</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>39% <span class="acc-n">(38)</span></td>
+          <td>37% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -279,7 +291,8 @@
           <td>+0</td>
           <td class="points">53</td>
           <td><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span></td>
-          <td>-</td>
+          <td>42% <span class="acc-n">(38)</span></td>
+          <td>34% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -296,7 +309,8 @@
           <td>-2</td>
           <td class="points">48</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>32% <span class="acc-n">(38)</span></td>
+          <td>37% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -313,7 +327,8 @@
           <td>-16</td>
           <td class="points">43</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>55% <span class="acc-n">(38)</span></td>
+          <td>55% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -330,7 +345,8 @@
           <td>-10</td>
           <td class="points">42</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
-          <td>-</td>
+          <td>45% <span class="acc-n">(38)</span></td>
+          <td>45% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -347,7 +363,8 @@
           <td>-15</td>
           <td class="points">42</td>
           <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
-          <td>-</td>
+          <td>58% <span class="acc-n">(38)</span></td>
+          <td>61% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -364,7 +381,8 @@
           <td>-1</td>
           <td class="points">38</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>47% <span class="acc-n">(38)</span></td>
+          <td>71% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>0%</td>
@@ -381,7 +399,8 @@
           <td>-47</td>
           <td class="points">25</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>63% <span class="acc-n">(38)</span></td>
+          <td>71% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>100%</td>
@@ -398,7 +417,8 @@
           <td>-46</td>
           <td class="points">22</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>55% <span class="acc-n">(38)</span></td>
+          <td>55% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>100%</td>
@@ -415,7 +435,8 @@
           <td>-60</td>
           <td class="points">12</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span></td>
-          <td>-</td>
+          <td>74% <span class="acc-n">(38)</span></td>
+          <td>74% <span class="acc-n">(38)</span></td>
           <td>0%</td>
           <td>0%</td>
           <td>100%</td>
@@ -423,9 +444,13 @@
     </tbody>
   </table>
 </section>
-  <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson με στάθμιση
-    πρόσφατης φόρμας και διόρθωση Dixon-Coles &middot; Προσομοίωση τελικής
-    βαθμολογίας: Monte Carlo, χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+  <footer>Δεδομένα: football-data.org &middot; Δύο μοντέλα πρόβλεψης:
+    <span style="color:#facc15">Poisson</span> (μέσοι όροι γκολ με στάθμιση
+    πρόσφατης φόρμας + διόρθωση Dixon-Coles) και
+    <span style="color:#60a5fa">Elo</span> (rating που ενημερώνεται
+    αγώνα-αγώνα, πιο ευαίσθητο σε ξαφνικές αλλαγές φόρμας) &middot;
+    Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο Poisson,
+    χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
   <script>
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(function (el) {
