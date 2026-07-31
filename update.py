@@ -26,6 +26,12 @@ from src.api_client import FootballDataClient  # noqa: E402
 # αρκετά δεδομένα.
 MIN_MATCHES_FOR_CURRENT_SEASON = 40  # περίπου 4 πλήρεις αγωνιστικές
 
+# Ιστορικές σεζόν που εμφανίζονται σαν επιπλέον καρτέλες, ΑΝ υπάρχουν ήδη
+# δεδομένα γι' αυτές στη βάση (φορτώνονται μία φορά με `python backtest.py
+# <σεζόν>` — το update.py δεν ξανακάνει τα ίδια API calls κάθε μέρα, απλά
+# διαβάζει ό,τι υπάρχει ήδη τοπικά).
+HISTORICAL_SEASONS = [2025, 2024, 2023]
+
 
 def current_season_year(today: datetime.date | None = None) -> int:
     """Το football-data.org δηλώνει σεζόν με το έτος έναρξης (π.χ. 2025 για
@@ -84,8 +90,43 @@ def main() -> None:
     all_matches = db.season_matches(season)
     sim = simulate.simulate_season(model, all_matches, season)
 
-    out_path = render.render_report(season, matchday, fixtures, preds,
-                                     table=table, accuracy=accuracy, sim=sim)
+    current_label = f"Τρέχουσα σεζόν {season}-{season + 1}"
+    sections = [{
+        "id": "current",
+        "label": current_label,
+        "html": render.build_section(
+            "current", current_label, season, matchday, fixtures, preds,
+            table=table, accuracy=accuracy, sim=sim, active=True,
+        ),
+    }]
+
+    print("Έλεγχος για ήδη φορτωμένες ιστορικές σεζόν...")
+    for hist_season in HISTORICAL_SEASONS:
+        if hist_season == season:
+            continue
+        hist_matches = db.season_matches(hist_season)
+        if not hist_matches:
+            continue
+        hist_table = db.standings_and_form(hist_season)
+        hist_accuracy = db.accuracy_stats(hist_season)
+        if not hist_table:
+            continue
+        print(f"  προσθήκη καρτέλας {hist_season}-{hist_season + 1} "
+              f"({len(hist_table)} ομάδες στη βαθμολογία)")
+        hist_id = f"season{hist_season}"
+        hist_label = f"{hist_season}-{hist_season + 1}"
+        sections.append({
+            "id": hist_id,
+            "label": hist_label,
+            "html": render.build_section(
+                hist_id, hist_label, hist_season, None, [], [], table=hist_table,
+                accuracy=hist_accuracy, sim={},
+                note="Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε "
+                     "το μοντέλο αν το είχαμε τρέξει τότε.",
+            ),
+        })
+
+    out_path = render.render_site(sections)
     print(f"Ολοκληρώθηκε. Δες το {out_path}")
 
 

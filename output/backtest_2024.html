@@ -3,56 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PL Predictor &middot; Τέλος σεζόν</title>
+<title>PL Predictor</title>
 <style>
+  * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
           color:#e0e6ed; margin:0; padding:2rem; }
   h1 { color:#fff; margin-bottom:0.2rem; }
-  h2 { color:#fff; font-size:1.1rem; margin:2.5rem 0 0.8rem; }
-  .meta { color:#9db4c0; margin-bottom:1rem; }
-  .accuracy { color:#9db4c0; margin-bottom:1.5rem; font-size:0.9rem; }
+  h3 { color:#fff; font-size:1.05rem; margin:2rem 0 0.7rem; }
+  .meta { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
+  .accuracy { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy b { color:#4ade80; }
+  .generated { color:#5c7182; font-size:0.8rem; margin-bottom:1.2rem; }
+  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem;
+        border-bottom:1px solid #1c3a52; padding-bottom:1rem; }
+  nav button { background:#132a3e; color:#9db4c0; border:1px solid #1c3a52;
+               border-radius:6px; padding:0.5rem 1rem; font-size:0.9rem;
+               cursor:pointer; font-family:inherit; }
+  nav button:hover { background:#1c3a52; color:#fff; }
+  nav button.active { background:#4ade80; color:#0d1b2a; font-weight:700; border-color:#4ade80; }
   table { width:100%; border-collapse:collapse; background:#132a3e; border-radius:8px;
-           overflow:hidden; font-size:0.92rem; }
-  th, td { padding:0.6rem 0.8rem; text-align:center; }
+          overflow:hidden; font-size:0.9rem; }
+  th, td { padding:0.55rem 0.7rem; text-align:center; }
   th { background:#1c3a52; color:#9db4c0; font-weight:600; text-transform:uppercase;
-        font-size:0.75rem; letter-spacing:0.03em; }
+       font-size:0.72rem; letter-spacing:0.03em; }
   tr:nth-child(even) { background:#0f2436; }
   .team { font-weight:600; color:#fff; text-align:left; }
-  .score { font-size:1.15rem; font-weight:700; color:#4ade80; }
+  .pick { font-weight:700; color:#facc15; }
+  .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
-  .probs { color:#9db4c0; font-size:0.88rem; }
+  .probs { color:#9db4c0; font-size:0.85rem; }
   .points { font-weight:700; color:#fff; }
   .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
   .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
   .badge { display:inline-block; width:1.3rem; height:1.3rem; line-height:1.3rem;
-            border-radius:3px; font-size:0.7rem; font-weight:700; margin:0 1px; }
+           border-radius:3px; font-size:0.7rem; font-weight:700; margin:0 1px; }
   .badge-W { background:#16653488; color:#4ade80; }
   .badge-D { background:#374151; color:#cbd5e1; }
   .badge-L { background:#7f1d1d88; color:#f87171; }
   .note { background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
-           margin-bottom:1.2rem; font-size:0.88rem; }
+          margin-bottom:1rem; font-size:0.85rem; }
   footer { margin-top:2rem; color:#5c7182; font-size:0.8rem; }
 </style>
 </head>
 <body>
   <h1>Premier League &mdash; Προβλέψεις</h1>
-  <div class="meta">Σεζόν 2024-2025 &middot; Τέλος σεζόν &middot;
-    ενημερώθηκε 31/07/2026 10:30</div>
-  <div class="note">Backtest: αναπαραγωγή της σεζόν 2024-2025 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
-  <div class="accuracy">Ακρίβεια μοντέλου φέτος (σε 380 αγώνες): <b>47%</b> σωστό αποτέλεσμα (1/Χ/2) &middot; <b>8%</b> ακριβές σκορ</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 10:47</div>
+  <nav><button data-target="season" class="active" onclick="showTab('season')">Σεζόν 2024-2025</button></nav>
+  
+<section id="season" class="tab-panel" style="display:block">
+  <div class="meta">Σεζόν 2024-2025</div>
+  <div class="note">Backtest: αναπαραγωγή της σεζόν 2024-2025 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση (γι' αυτό μπορεί να δείχνουν υπερβολικά σίγουρες τιμές όπως 100% — έχουν μόνο ένα έτος δεδομένων να στηριχτούν) — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
+  <div class="accuracy">Ακρίβεια μοντέλου (σε 380 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>12%</b> ακριβές σκορ</div>
+  
 
-  <table>
-    <thead>
-      <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Πρόβλεψη</th>
-          <th>Φιλοξενούμενος</th><th>Αναμ. γκολ</th><th>1 / Χ / 2</th></tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="6">Καμία επερχόμενη αγωνιστική βρέθηκε.</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h2>
+  <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
   <table>
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
@@ -383,10 +387,19 @@
         </tr>
     </tbody>
   </table>
-
-  <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson (επιθετική/αμυντική
-    δύναμη ομάδων, με μεγαλύτερο βάρος στην πρόσφατη φόρμα) &middot;
-    Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο ίδιο μοντέλο,
-    χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+</section>
+  <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson με στάθμιση
+    πρόσφατης φόρμας και διόρθωση Dixon-Coles &middot; Προσομοίωση τελικής
+    βαθμολογίας: Monte Carlo, χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+  <script>
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(function (el) {
+    el.style.display = (el.id === id) ? 'block' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.target === id);
+  });
+}
+</script>
 </body>
 </html>

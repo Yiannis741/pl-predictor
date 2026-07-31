@@ -255,11 +255,21 @@ def standings_and_form(season: int, form_length: int = 5) -> list[dict]:
 def accuracy_stats(season: int) -> dict:
     """Πόσο συχνά η πρόβλεψή μας (πριν τον αγώνα) πέτυχε το σωστό
     αποτέλεσμα (1/Χ/2) ή το ακριβές σκορ, στους αγώνες της σεζόν που έχουν
-    ήδη τελειώσει."""
+    ήδη τελειώσει.
+
+    ΣΗΜΑΝΤΙΚΟ: η "σωστή πρόβλεψη" 1/Χ/2 κρίνεται από ποια από τις τρεις
+    αθροισμένες πιθανότητες (prob_home/prob_draw/prob_away) ήταν η
+    μεγαλύτερη — ΟΧΙ από το αν το πιο πιθανό μεμονωμένο ΑΚΡΙΒΕΣ σκορ
+    συνέπιπτε τυχαία με το αποτέλεσμα. Σε ισόρροπους αγώνες το πιο πιθανό
+    μεμονωμένο σκορ είναι συχνά ισοπαλία (1-1) ακόμα κι όταν η ομάδα ήταν
+    συνολικά πιο πιθανό να κερδίσει (η πιθανότητα νίκης μοιράζεται σε πολλά
+    σκορ: 1-0, 2-0, 2-1, ...). Η παλιά μέθοδος υποτιμούσε συστηματικά τις
+    νίκες ευνοούμενων σε κοντινούς αγώνες."""
     with connect() as conn:
         rows = conn.execute(
             """SELECT m.home_score, m.away_score,
-                      p.predicted_home_score, p.predicted_away_score
+                      p.predicted_home_score, p.predicted_away_score,
+                      p.prob_home, p.prob_draw, p.prob_away
                FROM matches m JOIN predictions p ON p.match_id = m.id
                WHERE m.season=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
@@ -272,8 +282,15 @@ def accuracy_stats(season: int) -> dict:
     for r in rows:
         actual = "H" if r["home_score"] > r["away_score"] else (
             "A" if r["home_score"] < r["away_score"] else "D")
-        predicted = "H" if r["predicted_home_score"] > r["predicted_away_score"] else (
-            "A" if r["predicted_home_score"] < r["predicted_away_score"] else "D")
+
+        ph, pd, pa = r["prob_home"], r["prob_draw"], r["prob_away"]
+        if ph >= pd and ph >= pa:
+            predicted = "H"
+        elif pa >= pd:
+            predicted = "A"
+        else:
+            predicted = "D"
+
         if actual == predicted:
             correct_result += 1
         if (r["home_score"] == r["predicted_home_score"]

@@ -45,14 +45,25 @@ def run_backtest(season: int) -> None:
     prev_season = season - 1
     print(f"Λήψη αγώνων της προηγούμενης σεζόν ({prev_season}-{prev_season + 1}) "
           f"ως αρχική εικόνα των ομάδων...")
-    prev_matches = client.get_matches(competition=config.COMPETITION_CODE, season=prev_season)
-    db.save_matches(prev_matches, prev_season)
-    print(f"  {len(prev_matches)} αγώνες.")
+    try:
+        prev_matches = client.get_matches(competition=config.COMPETITION_CODE, season=prev_season)
+        db.save_matches(prev_matches, prev_season)
+        print(f"  {len(prev_matches)} αγώνες.")
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 403:
+            print(f"  Μη διαθέσιμη με το δωρεάν πλάνο (403) — συνεχίζω χωρίς αυτήν. "
+                  f"Οι πρώτες αγωνιστικές της {season}-{season + 1} δεν θα έχουν αρκετό "
+                  f"ιστορικό για πρόβλεψη, αλλά οι επόμενες θα δουλέψουν κανονικά μόλις "
+                  f"συσσωρευτούν αγώνες μέσα στη σεζόν.")
+            prev_season = None
+        else:
+            raise
 
     # Το μοντέλο όπως θα ήταν ΠΡΙΝ την 1η αγωνιστική -- μόνο η προηγούμενη
     # σεζόν είναι γνωστή ακόμα. Χρησιμοποιείται στην προσομοίωση παρακάτω,
     # ώστε να συγκρίνουμε "τι θα προβλέπαμε" με το πραγματικό τελικό αποτέλεσμα.
-    preseason_model = predictor.compute_strengths(db.finished_matches(prev_season))
+    preseason_model = (predictor.compute_strengths(db.finished_matches(prev_season))
+                        if prev_season is not None else None)
 
     matchdays = db.distinct_matchdays(season)
     if not matchdays:
@@ -71,7 +82,8 @@ def run_backtest(season: int) -> None:
             continue
         cutoff = min(dates)
 
-        history = db.finished_matches_before([season, prev_season], cutoff)
+        seasons_for_history = [season] + ([prev_season] if prev_season is not None else [])
+        history = db.finished_matches_before(seasons_for_history, cutoff)
         model = predictor.compute_strengths(history)
         if model is None:
             continue
