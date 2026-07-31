@@ -90,7 +90,7 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
     </tbody>
   </table>
   <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson (επιθετική/αμυντική
-    δύναμη ομάδων βάσει προηγούμενων αποτελεσμάτων)</footer>
+    δύναμη ομάδων, με μεγαλύτερο βάρος στην πρόσφατη φόρμα)</footer>
 </body>
 </html>"""
 

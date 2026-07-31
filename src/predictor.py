@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 """Στατιστικό μοντέλο πρόβλεψης βασισμένο σε κατανομή Poisson (ο κλασικός
-τρόπος να προβλέπεις σκορ ποδοσφαίρου, βλ. Maher 1982 / Dixon-Coles 1997).
+τρόπος να προβλέπεις σκορ ποδοσφαίρου, βλ. Maher 1982 / Dixon-Coles 1997),
+με στάθμιση πρόσφατης φόρμας.
 
 Ιδέα:
   1. Υπολογίζουμε πόσα γκολ βάζει/δέχεται κάθε ομάδα σε σχέση με τον μέσο όρο
      της διοργάνωσης, ξεχωριστά ως γηπεδούχος και ως φιλοξενούμενος
-     ("επιθετική"/"αμυντική δύναμη").
+     ("επιθετική"/"αμυντική δύναμη"). Οι πιο πρόσφατοι αγώνες μετράνε
+     περισσότερο από τους παλιότερους (εκθετική απόσβεση βάρους — βλ.
+     _match_weight), ώστε η τρέχουσα φόρμα μιας ομάδας να επηρεάζει την
+     πρόβλεψη περισσότερο από αποτελέσματα πολλών μηνών πριν.
   2. Για έναν επερχόμενο αγώνα, πολλαπλασιάζουμε τις δυνάμεις των δύο ομάδων
      με τον μέσο όρο γκολ της διοργάνωσης, ώστε να βγει το αναμενόμενο σκορ
      (λ) για κάθε πλευρά.
@@ -13,26 +17,50 @@
      εκεί βγάζουμε πιθανότητες 1/Χ/2 και το πιο πιθανό ακριβές σκορ.
 """
 
+import datetime
 import math
 from collections import defaultdict
 
 MAX_GOALS = 8  # αρκετό εύρος για ρεαλιστικά σκορ Premier League
+
+# Πόσες μέρες χρειάζονται για να "μισέψει" η βαρύτητα ενός παλιού αγώνα.
+# 60 μέρες ≈ οι τελευταίοι 8-9 αγώνες μετράνε πολύ περισσότερο από αγώνες
+# της αρχής της σεζόν ή από την περσινή σεζόν.
+HALF_LIFE_DAYS = 60.0
 
 
 def _poisson_pmf(k: int, lam: float) -> float:
     return math.exp(-lam) * (lam ** k) / math.factorial(k)
 
 
-def compute_strengths(matches: list[dict]) -> dict | None:
-    """matches: λίστα από dict με home_team_id, away_team_id, home_score, away_score."""
-    home_goals_for = defaultdict(list)
-    home_goals_against = defaultdict(list)
-    away_goals_for = defaultdict(list)
-    away_goals_against = defaultdict(list)
+def _match_weight(utc_date_str: str | None, reference: datetime.datetime) -> float:
+    """Βάρος αγώνα βάσει "φρεσκάδας": 1.0 για σημερινό αγώνα, 0.5 μετά από
+    HALF_LIFE_DAYS μέρες, 0.25 μετά από 2×HALF_LIFE_DAYS κ.ο.κ."""
+    if not utc_date_str:
+        return 0.3  # άγνωστη ημερομηνία -> μικρό, ασφαλές βάρος
+    try:
+        dt = datetime.datetime.fromisoformat(utc_date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return 0.3
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    age_days = max(0.0, (reference - dt).total_seconds() / 86400.0)
+    return 0.5 ** (age_days / HALF_LIFE_DAYS)
 
-    total_home_goals = 0
-    total_away_goals = 0
-    n = 0
+
+def compute_strengths(matches: list[dict]) -> dict | None:
+    """matches: λίστα από dict με home_team_id, away_team_id, home_score,
+    away_score, utc_date. Κάθε αγώνας μετράει με βάρος ανάλογο της
+    φρεσκάδας του (βλ. _match_weight), όχι όλοι το ίδιο."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # κάθε accumulator: team -> [Σ(βάρος × γκολ), Σβάρος]
+    home_for: dict = defaultdict(lambda: [0.0, 0.0])
+    home_against: dict = defaultdict(lambda: [0.0, 0.0])
+    away_for: dict = defaultdict(lambda: [0.0, 0.0])
+    away_against: dict = defaultdict(lambda: [0.0, 0.0])
+    league_home = [0.0, 0.0]
+    league_away = [0.0, 0.0]
 
     for m in matches:
         hs, aw = m.get("home_score"), m.get("away_score")
@@ -41,31 +69,41 @@ def compute_strengths(matches: list[dict]) -> dict | None:
         h, a = m.get("home_team_id"), m.get("away_team_id")
         if h is None or a is None:
             continue
-        home_goals_for[h].append(hs)
-        home_goals_against[h].append(aw)
-        away_goals_for[a].append(aw)
-        away_goals_against[a].append(hs)
-        total_home_goals += hs
-        total_away_goals += aw
-        n += 1
 
-    if n == 0:
+        w = _match_weight(m.get("utc_date"), now)
+        if w <= 0:
+            continue
+
+        home_for[h][0] += w * hs
+        home_for[h][1] += w
+        home_against[h][0] += w * aw
+        home_against[h][1] += w
+        away_for[a][0] += w * aw
+        away_for[a][1] += w
+        away_against[a][0] += w * hs
+        away_against[a][1] += w
+
+        league_home[0] += w * hs
+        league_home[1] += w
+        league_away[0] += w * aw
+        league_away[1] += w
+
+    if league_home[1] == 0:
         return None
 
-    avg_home = total_home_goals / n
-    avg_away = total_away_goals / n
+    avg_home = league_home[0] / league_home[1]
+    avg_away = league_away[0] / league_away[1]
 
-    teams = set(home_goals_for) | set(away_goals_for)
+    def wavg(acc, fallback):
+        return (acc[0] / acc[1]) if acc[1] > 0 else fallback
 
-    def avg(lst, fallback):
-        return (sum(lst) / len(lst)) if lst else fallback
-
+    teams = set(home_for) | set(away_for)
     strengths = {}
     for t in teams:
-        h_for = avg(home_goals_for.get(t, []), avg_home)
-        h_against = avg(home_goals_against.get(t, []), avg_away)
-        a_for = avg(away_goals_for.get(t, []), avg_away)
-        a_against = avg(away_goals_against.get(t, []), avg_home)
+        h_for = wavg(home_for.get(t, [0.0, 0.0]), avg_home)
+        h_against = wavg(home_against.get(t, [0.0, 0.0]), avg_away)
+        a_for = wavg(away_for.get(t, [0.0, 0.0]), avg_away)
+        a_against = wavg(away_against.get(t, [0.0, 0.0]), avg_home)
         strengths[t] = {
             "home_attack": (h_for / avg_home) if avg_home else 1.0,
             "home_defense": (h_against / avg_away) if avg_away else 1.0,
