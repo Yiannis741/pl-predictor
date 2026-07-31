@@ -11,6 +11,17 @@ def _fmt_pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
 
+def _fmt_date(iso_str: str | None) -> str:
+    """Μετατρέπει π.χ. '2026-08-21T19:00:00Z' σε '21/08/2026 19:00'."""
+    if not iso_str:
+        return "-"
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return iso_str
+
+
 def render_report(season: int, matchday: int | None, fixtures: list[dict],
                    preds: list[dict]) -> str:
     teams = db.team_names()
@@ -21,7 +32,7 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
         home = teams.get(m["home_team_id"], {}).get("name", "?")
         away = teams.get(m["away_team_id"], {}).get("name", "?")
         p = preds_by_match.get(m["id"])
-        date = (m.get("utc_date") or "")[:16].replace("T", " ")
+        date = _fmt_date(m.get("utc_date"))
         if p:
             score = f'{p["predicted_home_score"]}-{p["predicted_away_score"]}'
             probs = (f'{_fmt_pct(p["prob_home"])} / {_fmt_pct(p["prob_draw"])} / '
@@ -37,7 +48,7 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
           <td class="probs">{probs}</td>
         </tr>""")
 
-    generated = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     md_label = f"Αγωνιστική {matchday}" if matchday else "Δεν υπάρχει προγραμματισμένη αγωνιστική"
     body_rows = "".join(rows_html) if rows_html else (
         '<tr><td colspan="5">Καμία επερχόμενη αγωνιστική βρέθηκε.</td></tr>')
