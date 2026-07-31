@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PL Predictor &middot; Τέλος σεζόν</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
+          color:#e0e6ed; margin:0; padding:2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; }
+  h2 { color:#fff; font-size:1.1rem; margin:2.5rem 0 0.8rem; }
+  .meta { color:#9db4c0; margin-bottom:1rem; }
+  .accuracy { color:#9db4c0; margin-bottom:1.5rem; font-size:0.9rem; }
+  .accuracy b { color:#4ade80; }
+  table { width:100%; border-collapse:collapse; background:#132a3e; border-radius:8px;
+           overflow:hidden; font-size:0.92rem; }
+  th, td { padding:0.6rem 0.8rem; text-align:center; }
+  th { background:#1c3a52; color:#9db4c0; font-weight:600; text-transform:uppercase;
+        font-size:0.75rem; letter-spacing:0.03em; }
+  tr:nth-child(even) { background:#0f2436; }
+  .team { font-weight:600; color:#fff; text-align:left; }
+  .score { font-size:1.15rem; font-weight:700; color:#4ade80; }
+  .xg { color:#7fa3b8; font-size:0.85rem; }
+  .probs { color:#9db4c0; font-size:0.88rem; }
+  .points { font-weight:700; color:#fff; }
+  .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
+  .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
+  .badge { display:inline-block; width:1.3rem; height:1.3rem; line-height:1.3rem;
+            border-radius:3px; font-size:0.7rem; font-weight:700; margin:0 1px; }
+  .badge-W { background:#16653488; color:#4ade80; }
+  .badge-D { background:#374151; color:#cbd5e1; }
+  .badge-L { background:#7f1d1d88; color:#f87171; }
+  .note { background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
+           margin-bottom:1.2rem; font-size:0.88rem; }
+  footer { margin-top:2rem; color:#5c7182; font-size:0.8rem; }
+</style>
+</head>
+<body>
+  <h1>Premier League &mdash; Προβλέψεις</h1>
+  <div class="meta">Σεζόν 2024-2025 &middot; Τέλος σεζόν &middot;
+    ενημερώθηκε 31/07/2026 10:30</div>
+  <div class="note">Backtest: αναπαραγωγή της σεζόν 2024-2025 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
+  <div class="accuracy">Ακρίβεια μοντέλου φέτος (σε 380 αγώνες): <b>47%</b> σωστό αποτέλεσμα (1/Χ/2) &middot; <b>8%</b> ακριβές σκορ</div>
+
+  <table>
+    <thead>
+      <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Πρόβλεψη</th>
+          <th>Φιλοξενούμενος</th><th>Αναμ. γκολ</th><th>1 / Χ / 2</th></tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="6">Καμία επερχόμενη αγωνιστική βρέθηκε.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
+          <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+    </thead>
+    <tbody>
+      
+        <tr class="zone-top4">
+          <td>1</td>
+          <td class="team">Liverpool FC</td>
+          <td>38</td>
+          <td>25</td>
+          <td>9</td>
+          <td>4</td>
+          <td>86</td>
+          <td>41</td>
+          <td>+45</td>
+          <td class="points">84</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
+          <td>100%</td>
+          <td>100%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>2</td>
+          <td class="team">Arsenal FC</td>
+          <td>38</td>
+          <td>20</td>
+          <td>14</td>
+          <td>4</td>
+          <td>69</td>
+          <td>34</td>
+          <td>+35</td>
+          <td class="points">74</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>0%</td>
+          <td>100%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>3</td>
+          <td class="team">Manchester City FC</td>
+          <td>38</td>
+          <td>21</td>
+          <td>8</td>
+          <td>9</td>
+          <td>72</td>
+          <td>44</td>
+          <td>+28</td>
+          <td class="points">71</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>100%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>4</td>
+          <td class="team">Chelsea FC</td>
+          <td>38</td>
+          <td>20</td>
+          <td>9</td>
+          <td>9</td>
+          <td>64</td>
+          <td>43</td>
+          <td>+21</td>
+          <td class="points">69</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>100%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>5</td>
+          <td class="team">Newcastle United FC</td>
+          <td>38</td>
+          <td>20</td>
+          <td>6</td>
+          <td>12</td>
+          <td>68</td>
+          <td>47</td>
+          <td>+21</td>
+          <td class="points">66</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>6</td>
+          <td class="team">Aston Villa FC</td>
+          <td>38</td>
+          <td>19</td>
+          <td>9</td>
+          <td>10</td>
+          <td>58</td>
+          <td>51</td>
+          <td>+7</td>
+          <td class="points">66</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>7</td>
+          <td class="team">Nottingham Forest FC</td>
+          <td>38</td>
+          <td>19</td>
+          <td>8</td>
+          <td>11</td>
+          <td>58</td>
+          <td>46</td>
+          <td>+12</td>
+          <td class="points">65</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>8</td>
+          <td class="team">Brighton & Hove Albion FC</td>
+          <td>38</td>
+          <td>16</td>
+          <td>13</td>
+          <td>9</td>
+          <td>66</td>
+          <td>59</td>
+          <td>+7</td>
+          <td class="points">61</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>9</td>
+          <td class="team">AFC Bournemouth</td>
+          <td>38</td>
+          <td>15</td>
+          <td>11</td>
+          <td>12</td>
+          <td>58</td>
+          <td>46</td>
+          <td>+12</td>
+          <td class="points">56</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>10</td>
+          <td class="team">Brentford FC</td>
+          <td>38</td>
+          <td>16</td>
+          <td>8</td>
+          <td>14</td>
+          <td>66</td>
+          <td>57</td>
+          <td>+9</td>
+          <td class="points">56</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>11</td>
+          <td class="team">Fulham FC</td>
+          <td>38</td>
+          <td>15</td>
+          <td>9</td>
+          <td>14</td>
+          <td>54</td>
+          <td>54</td>
+          <td>+0</td>
+          <td class="points">54</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>12</td>
+          <td class="team">Crystal Palace FC</td>
+          <td>38</td>
+          <td>13</td>
+          <td>14</td>
+          <td>11</td>
+          <td>51</td>
+          <td>51</td>
+          <td>+0</td>
+          <td class="points">53</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>13</td>
+          <td class="team">Everton FC</td>
+          <td>38</td>
+          <td>11</td>
+          <td>15</td>
+          <td>12</td>
+          <td>42</td>
+          <td>44</td>
+          <td>-2</td>
+          <td class="points">48</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>14</td>
+          <td class="team">West Ham United FC</td>
+          <td>38</td>
+          <td>11</td>
+          <td>10</td>
+          <td>17</td>
+          <td>46</td>
+          <td>62</td>
+          <td>-16</td>
+          <td class="points">43</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>15</td>
+          <td class="team">Manchester United FC</td>
+          <td>38</td>
+          <td>11</td>
+          <td>9</td>
+          <td>18</td>
+          <td>44</td>
+          <td>54</td>
+          <td>-10</td>
+          <td class="points">42</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>16</td>
+          <td class="team">Wolverhampton Wanderers FC</td>
+          <td>38</td>
+          <td>12</td>
+          <td>6</td>
+          <td>20</td>
+          <td>54</td>
+          <td>69</td>
+          <td>-15</td>
+          <td class="points">42</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="">
+          <td>17</td>
+          <td class="team">Tottenham Hotspur FC</td>
+          <td>38</td>
+          <td>11</td>
+          <td>5</td>
+          <td>22</td>
+          <td>64</td>
+          <td>65</td>
+          <td>-1</td>
+          <td class="points">38</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>0%</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>18</td>
+          <td class="team">Leicester City FC</td>
+          <td>38</td>
+          <td>6</td>
+          <td>7</td>
+          <td>25</td>
+          <td>33</td>
+          <td>80</td>
+          <td>-47</td>
+          <td class="points">25</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>100%</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>19</td>
+          <td class="team">Ipswich Town FC</td>
+          <td>38</td>
+          <td>4</td>
+          <td>10</td>
+          <td>24</td>
+          <td>36</td>
+          <td>82</td>
+          <td>-46</td>
+          <td class="points">22</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>100%</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>20</td>
+          <td class="team">Southampton FC</td>
+          <td>38</td>
+          <td>2</td>
+          <td>6</td>
+          <td>30</td>
+          <td>26</td>
+          <td>86</td>
+          <td>-60</td>
+          <td class="points">12</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span></td>
+          <td>0%</td>
+          <td>0%</td>
+          <td>100%</td>
+        </tr>
+    </tbody>
+  </table>
+
+  <footer>Δεδομένα: football-data.org &middot; Μοντέλο: Poisson (επιθετική/αμυντική
+    δύναμη ομάδων, με μεγαλύτερο βάρος στην πρόσφατη φόρμα) &middot;
+    Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο ίδιο μοντέλο,
+    χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+</body>
+</html>

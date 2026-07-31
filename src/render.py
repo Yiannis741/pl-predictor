@@ -100,17 +100,19 @@ def _standings_table(table: list[dict], sim: dict) -> str:
 
 def render_report(season: int, matchday: int | None, fixtures: list[dict],
                    preds: list[dict], table: list[dict] | None = None,
-                   accuracy: dict | None = None, sim: dict | None = None) -> str:
+                   accuracy: dict | None = None, sim: dict | None = None,
+                   out_filename: str = "index.html", note: str | None = None) -> str:
     teams = db.team_names()
     preds_by_match = {p["match_id"]: p for p in preds}
     table = table or []
     sim = sim or {}
 
     generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-    md_label = f"Αγωνιστική {matchday}" if matchday else "Δεν υπάρχει προγραμματισμένη αγωνιστική"
+    md_label = f"Αγωνιστική {matchday}" if matchday else "Τέλος σεζόν"
     fixtures_rows = _fixtures_table(fixtures, preds_by_match, teams)
     accuracy_html = _accuracy_html(accuracy)
     standings_rows = _standings_table(table, sim)
+    note_html = f'<div class="note">{note}</div>' if note else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="el">
@@ -144,6 +146,8 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
   .badge-W {{ background:#16653488; color:#4ade80; }}
   .badge-D {{ background:#374151; color:#cbd5e1; }}
   .badge-L {{ background:#7f1d1d88; color:#f87171; }}
+  .note {{ background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
+           margin-bottom:1.2rem; font-size:0.88rem; }}
   footer {{ margin-top:2rem; color:#5c7182; font-size:0.8rem; }}
 </style>
 </head>
@@ -151,6 +155,7 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
   <h1>Premier League &mdash; Προβλέψεις</h1>
   <div class="meta">Σεζόν {season}-{season + 1} &middot; {md_label} &middot;
     ενημερώθηκε {generated}</div>
+  {note_html}
   {accuracy_html}
 
   <table>
@@ -183,6 +188,6 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
 </html>"""
 
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = config.OUTPUT_DIR / "index.html"
+    out_path = config.OUTPUT_DIR / out_filename
     out_path.write_text(html, encoding="utf-8")
     return str(out_path)

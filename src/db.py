@@ -131,6 +131,43 @@ def next_matchday_fixtures(season: int) -> tuple[int | None, list[dict]]:
         return md, [dict(r) for r in rows]
 
 
+def distinct_matchdays(season: int) -> list[int]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT matchday FROM matches WHERE season=? "
+            "AND matchday IS NOT NULL ORDER BY matchday", (season,),
+        ).fetchall()
+        return [r["matchday"] for r in rows]
+
+
+def matchday_matches(season: int, matchday: int) -> list[dict]:
+    """Οι αγώνες μιας συγκεκριμένης αγωνιστικής, ανεξαρτήτως status —
+    χρησιμοποιείται στο backtest, όπου όλοι είναι ήδη FINISHED."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM matches WHERE season=? AND matchday=? ORDER BY utc_date",
+            (season, matchday),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def finished_matches_before(seasons: list[int], cutoff_iso: str) -> list[dict]:
+    """Τελειωμένοι αγώνες από μία ή περισσότερες σεζόν, με ημερομηνία πριν
+    από το cutoff — για να χτίζουμε το μοντέλο σε ένα backtest χωρίς να
+    "βλέπουμε το μέλλον" (data leakage)."""
+    if not seasons:
+        return []
+    placeholders = ",".join("?" for _ in seasons)
+    with connect() as conn:
+        rows = conn.execute(
+            f"SELECT * FROM matches WHERE season IN ({placeholders}) "
+            f"AND status='FINISHED' AND home_score IS NOT NULL "
+            f"AND away_score IS NOT NULL AND utc_date < ? ORDER BY utc_date",
+            (*seasons, cutoff_iso),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def team_names() -> dict[int, dict]:
     with connect() as conn:
         rows = conn.execute("SELECT id, name, crest FROM teams").fetchall()
