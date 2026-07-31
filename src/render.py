@@ -10,6 +10,12 @@ from . import competitions, config, db
 FORM_LABELS = {"W": "Ν", "D": "Ι", "L": "Η"}  # Νίκη / Ισοπαλία / Ήττα
 OUTCOME_LABELS = {"H": "1", "D": "Χ", "A": "2"}
 
+# Πόσο πρέπει να διαφωνεί το Poisson με την αγορά (στην ΙΔΙΑ έκβαση) για να
+# το σημειώσουμε σαν "αξίας" (value) -- αν το μοντέλο μας δίνει σημαντικά
+# μεγαλύτερη πιθανότητα από ό,τι υπονοούν οι αποδόσεις, η αγορά πιθανώς
+# υποτιμά αυτή την έκβαση. Καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.
+VALUE_EDGE_THRESHOLD = 0.08
+
 
 def _fmt_pct(x: float | None) -> str:
     if x is None:
@@ -52,8 +58,26 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
             probs = (f'{_fmt_pct(p["prob_home"] * 100)} / {_fmt_pct(p["prob_draw"] * 100)} / '
                      f'{_fmt_pct(p["prob_away"] * 100)}')
             xg = f'{p["lambda_home"]:.1f} &ndash; {p["lambda_away"]:.1f}'
+            if p.get("prob_over25") is not None:
+                over_pct = p["prob_over25"] * 100
+                ou_label = "Over 2.5" if over_pct >= 50 else "Under 2.5"
+                ou = f'{ou_label} ({_fmt_pct(over_pct if over_pct >= 50 else 100 - over_pct)})'
+            else:
+                ou = "-"
+            btts = _fmt_pct(p["prob_btts"] * 100) if p.get("prob_btts") is not None else "-"
         else:
-            pick, score, probs, xg = "-", "-", "-", "-"
+            pick, score, probs, xg, ou, btts = "-", "-", "-", "-", "-", "-"
+
+        # Value bet σήμα: το Poisson δίνει σημαντικά μεγαλύτερη πιθανότητα
+        # από την αγορά στην ΙΔΙΑ έκβαση που προβλέπουμε.
+        if p and mp:
+            outcome = p.get("predicted_outcome")
+            p_by_outcome = {"H": p["prob_home"], "D": p["prob_draw"], "A": p["prob_away"]}
+            m_by_outcome = {"H": mp["prob_home"], "D": mp["prob_draw"], "A": mp["prob_away"]}
+            edge = p_by_outcome.get(outcome, 0) - m_by_outcome.get(outcome, 0)
+            if edge >= VALUE_EDGE_THRESHOLD:
+                pick += (f' <span class="value-badge" title="Το Poisson δίνει {_fmt_pct(edge * 100)} '
+                         f'μονάδες παραπάνω πιθανότητα από την αγορά σε αυτή την έκβαση">&#9650; value</span>')
         if ep:
             elo_letter = OUTCOME_LABELS.get(ep.get("predicted_outcome"), "?")
             elo_conf = max(ep["prob_home"], ep["prob_draw"], ep["prob_away"])
@@ -78,6 +102,8 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
           <td class="score">{score}</td>
           <td class="xg">{xg}</td>
           <td class="probs">{probs}</td>
+          <td class="ou">{ou}</td>
+          <td class="ou">{btts}</td>
           <td class="pick pick-elo">{elo_pick}</td>
           {market_cell}
         </tr>""")
@@ -105,7 +131,8 @@ def _accuracy_html(accuracy: dict | None, elo_accuracy: dict | None = None,
 
 def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
                       elo_team_acc: dict | None = None,
-                      market_team_acc: dict | None = None) -> str:
+                      market_team_acc: dict | None = None,
+                      top_n: int = 4, releg_n: int = 3) -> str:
     n_cols = 14 + (1 if elo_team_acc is not None else 0) + (1 if market_team_acc is not None else 0)
     if not table:
         return (f'<tr><td colspan="{n_cols}">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
@@ -136,9 +163,9 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
                          if macc.get("total") else "-")
             market_acc_cell = f'<td>{macc_html}</td>'
         row_class = ""
-        if r["position"] <= 4:
+        if r["position"] <= top_n:
             row_class = "zone-top4"
-        elif r["position"] >= len(table) - 2:
+        elif r["position"] > len(table) - releg_n:
             row_class = "zone-releg"
         rows.append(f"""
         <tr class="{row_class}">
@@ -194,9 +221,13 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
                                      market_preds_by_match if show_market else None)
     accuracy_html = _accuracy_html(accuracy, elo_accuracy if show_elo else None,
                                     market_accuracy if show_market else None)
+    comp_meta = competitions.BY_CODE.get(competition, {})
+    top_n = comp_meta.get("top_zone", 4)
+    releg_n = comp_meta.get("releg_zone", 3)
     standings_rows = _standings_table(table, sim, team_accuracy,
                                        elo_team_accuracy if show_elo else None,
-                                       market_team_accuracy if show_market else None)
+                                       market_team_accuracy if show_market else None,
+                                       top_n=top_n, releg_n=releg_n)
     note_html = f'<div class="note">{note}</div>' if note else ""
 
     elo_th = '<th>Πρόβλεψη Elo</th>' if show_elo else ""
@@ -207,7 +238,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
           <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
-          <th>1 / Χ / 2</th>{elo_th}{market_th}</tr>
+          <th>1 / Χ / 2</th><th>O/U 2.5</th><th>BTTS</th>{elo_th}{market_th}</tr>
     </thead>
     <tbody>
       {fixtures_rows}
@@ -231,7 +262,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th>{elo_acc_th}{market_acc_th}
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-{top_n}</th><th>Υποβ. ({releg_n})</th></tr>
     </thead>
     <tbody>
       {standings_rows}
@@ -393,9 +424,13 @@ _CSS = """
   .pick { font-weight:700; color:#facc15; }
   .pick-elo { color:#60a5fa; }
   .pick-market { color:#c084fc; }
+  .value-badge { display:inline-block; background:#164e3488; color:#4ade80; font-size:0.68rem;
+                 font-weight:700; padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.3rem;
+                 vertical-align:middle; cursor:help; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
+  .ou { color:#7fa3b8; font-size:0.85rem; }
   .points { font-weight:700; color:#fff; }
   .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
   .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
@@ -480,7 +515,9 @@ def render_site(sections: list[dict], comp: dict | None = None,
     &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
     Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
     μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
-    δεδομένα Premier League).</footer>
+    δεδομένα Premier League). Η ετικέτα <span class="value-badge" style="margin-left:0">&#9650; value</span>
+    σημαίνει ότι το Poisson δίνει αισθητά μεγαλύτερη πιθανότητα από την
+    αγορά στην ίδια έκβαση -- καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.</footer>
   <script>{_JS}</script>
 </body>
 </html>"""
@@ -509,6 +546,8 @@ _HUB_CSS = """
   .card .league-name { font-weight:700; color:#fff; font-size:1rem; }
   .card .country { color:#9db4c0; font-size:0.82rem; margin-top:0.15rem; }
   footer { margin-top:2.5rem; color:#5c7182; font-size:0.8rem; }
+  footer a { color:#9db4c0; }
+  footer a:hover { color:#fff; }
 """
 
 
@@ -543,12 +582,115 @@ def build_hub_page(available: list[dict]) -> str:
   <div class="grid">{cards}</div>
   <footer>Δεδομένα: football-data.org &middot; Αποδόσεις αγοράς: The Odds API &middot;
     Ίδιες παράμετροι μοντέλων (Poisson/Elo) σε όλα τα πρωταθλήματα, συντονισμένες
-    πάνω σε δεδομένα Premier League.</footer>
+    πάνω σε δεδομένα Premier League. &middot; <a href="calibration.html">Πόσο σωστές
+    είναι οι πιθανότητες;</a></footer>
 </body>
 </html>"""
 
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = config.OUTPUT_DIR / "index.html"
+    out_path.write_text(html, encoding="utf-8")
+    return str(out_path)
+
+
+_MODEL_LABELS = {"poisson": "Poisson", "elo": "Elo", "market": "Αγορά (αποδόσεις)"}
+_MODEL_COLORS = {"poisson": "#facc15", "elo": "#60a5fa", "market": "#c084fc"}
+
+_CALIBRATION_CSS = """
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
+          color:#e0e6ed; margin:0; padding:2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; }
+  h2 { color:#fff; font-size:1.1rem; margin:2rem 0 0.6rem; }
+  .subtitle { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; max-width:60rem; line-height:1.5; }
+  .back-link { display:inline-block; color:#9db4c0; text-decoration:none; font-size:0.85rem;
+               margin-bottom:0.8rem; }
+  .back-link:hover { color:#fff; }
+  table { width:100%; max-width:46rem; border-collapse:collapse; background:#132a3e;
+          border-radius:8px; overflow:hidden; font-size:0.88rem; margin-bottom:0.5rem; }
+  th, td { padding:0.5rem 0.7rem; text-align:center; }
+  th { background:#1c3a52; color:#9db4c0; font-weight:600; text-transform:uppercase;
+       font-size:0.7rem; letter-spacing:0.03em; }
+  tr:nth-child(even) { background:#0f2436; }
+  .bar-cell { text-align:left; min-width:10rem; }
+  .bar-track { background:#1c3a52; border-radius:4px; height:0.9rem; position:relative;
+               overflow:hidden; }
+  .bar-fill { background:#4ade80; height:100%; border-radius:4px; }
+  .bar-fill.pred { background:#5c7182; }
+  .n-note { color:#5c7182; font-size:0.78rem; }
+  footer { margin-top:2.5rem; color:#5c7182; font-size:0.8rem; }
+"""
+
+
+def build_calibration_page(model_results: dict) -> str:
+    """model_results: {"poisson": [...], "elo": [...], "market": [...]},
+    κάθε λίστα από {"range","n","avg_pred","actual"} (βλ. calibration.py).
+    Σελίδα "πόσο βαθμονομημένες" είναι οι πιθανότητες κάθε μοντέλου -- αν
+    στους αγώνες που το μοντέλο έδωσε π.χ. ~70% σε μια έκβαση, κερδίζει
+    πράγματι περίπου το 70% των φορών."""
+    generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    sections = []
+    for model, rows in model_results.items():
+        if not rows:
+            continue
+        label = _MODEL_LABELS.get(model, model)
+        color = _MODEL_COLORS.get(model, "#4ade80")
+        total_n = sum(r["n"] for r in rows)
+        trs = []
+        for r in rows:
+            trs.append(f"""
+        <tr>
+          <td>{r['range']}</td>
+          <td>{r['n']}</td>
+          <td>{r['avg_pred']:.0f}%</td>
+          <td>{r['actual']:.0f}%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:{min(r['actual'],100):.0f}%; background:{color};"></div>
+            </div>
+          </td>
+        </tr>""")
+        sections.append(f"""
+    <h2>{label} <span class="n-note">({total_n} προβλέψεις συνολικά, όλα τα πρωταθλήματα/σεζόν)</span></h2>
+    <table>
+      <thead>
+        <tr><th>Δηλωμένη πιθανότητα</th><th>Ν</th><th>Μ.Ο. δηλωμένη</th>
+            <th>Πραγματικό ποσοστό</th><th>Πραγματικό (γράφημα)</th></tr>
+      </thead>
+      <tbody>{"".join(trs)}</tbody>
+    </table>""")
+
+    body = "".join(sections) if sections else "<p>Δεν υπάρχουν ακόμα αρκετά δεδομένα.</p>"
+
+    html = f"""<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calibration &mdash; Predictor</title>
+<style>{_CALIBRATION_CSS}</style>
+</head>
+<body>
+  <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
+  <h1>Πόσο "σωστές" είναι οι πιθανότητες;</h1>
+  <div class="subtitle">Ομαδοποιούμε όλες τις προβλέψεις κάθε μοντέλου (σε όλα τα πρωταθλήματα
+    και τις σεζόν που έχουμε) ανάλογα με τη δηλωμένη πιθανότητα της έκβασης που προβλέφθηκε,
+    και συγκρίνουμε με το πραγματικό ποσοστό επιτυχίας σε κάθε ομάδα. Αν το μοντέλο είναι
+    "καλά βαθμονομημένο", οι δύο στήλες (δηλωμένη / πραγματικό) πρέπει να είναι κοντά --
+    π.χ. στους αγώνες που δώσαμε ~70% σε μια έκβαση, θα έπρεπε να κερδίζει περίπου το 70%
+    των φορών. Αν το πραγματικό ποσοστό είναι σταθερά χαμηλότερο, το μοντέλο είναι υπερβολικά
+    σίγουρο (overconfident)· αν είναι ψηλότερο, είναι υπερβολικά συντηρητικό.</div>
+  <div class="generated">ενημερώθηκε {generated}</div>
+  {body}
+  <footer>Υπολογίζεται από όλα τα ήδη τελειωμένα ματς (backtest ιστορικών σεζόν + ό,τι
+    έχει ήδη παιχτεί φέτος) σε όλα τα πρωταθλήματα -- τρέξε <code>python calibration.py</code>
+    για να ξαναϋπολογιστεί μετά από νέα δεδομένα.</footer>
+</body>
+</html>"""
+
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = config.OUTPUT_DIR / "calibration.html"
     out_path.write_text(html, encoding="utf-8")
     return str(out_path)
 

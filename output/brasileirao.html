@@ -35,9 +35,13 @@
   .pick { font-weight:700; color:#facc15; }
   .pick-elo { color:#60a5fa; }
   .pick-market { color:#c084fc; }
+  .value-badge { display:inline-block; background:#164e3488; color:#4ade80; font-size:0.68rem;
+                 font-weight:700; padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.3rem;
+                 vertical-align:middle; cursor:help; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
+  .ou { color:#7fa3b8; font-size:0.85rem; }
   .points { font-weight:700; color:#fff; }
   .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
   .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
@@ -68,7 +72,7 @@
 <body>
   <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
   <h1><img src="https://crests.football-data.org/bsa.png" alt="" class="league-logo">Campeonato Brasileiro Série A &mdash; Προβλέψεις</h1>
-  <div class="generated">ενημερώθηκε 31/07/2026 17:08</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 18:00</div>
   <nav><button data-target="current" class="active" onclick="showTab('current')">Τρέχουσα σεζόν 2026</button><button data-target="season2025" class="" onclick="showTab('season2025')">2025</button><button data-target="season2024" class="" onclick="showTab('season2024')">2024</button><button data-target="season2023" class="" onclick="showTab('season2023')">2023</button><button data-target="detail-current" class="" onclick="showTab('detail-current')">Αναλυτικά 2026</button><button data-target="detail-2025" class="" onclick="showTab('detail-2025')">Αναλυτικά 2025</button><button data-target="detail-2024" class="" onclick="showTab('detail-2024')">Αναλυτικά 2024</button><button data-target="detail-2023" class="" onclick="showTab('detail-2023')">Αναλυτικά 2023</button></nav>
   
 <section id="current" class="tab-panel" style="display:block">
@@ -81,7 +85,7 @@
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
           <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
-          <th>1 / Χ / 2</th><th>Πρόβλεψη Elo</th><th>Πρόβλεψη Αγοράς</th></tr>
+          <th>1 / Χ / 2</th><th>O/U 2.5</th><th>BTTS</th><th>Πρόβλεψη Elo</th><th>Πρόβλεψη Αγοράς</th></tr>
     </thead>
     <tbody>
       
@@ -93,6 +97,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.5 &ndash; 1.0</td>
           <td class="probs">46% / 29% / 25%</td>
+          <td class="ou">Under 2.5 (55%)</td>
+          <td class="ou">50%</td>
           <td class="pick pick-elo">1 (53%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -104,6 +110,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.1 &ndash; 1.0</td>
           <td class="probs">35% / 33% / 32%</td>
+          <td class="ou">Under 2.5 (65%)</td>
+          <td class="ou">43%</td>
           <td class="pick pick-elo">2 (42%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -115,6 +123,8 @@
           <td class="score">1-0</td>
           <td class="xg">1.4 &ndash; 0.8</td>
           <td class="probs">48% / 30% / 21%</td>
+          <td class="ou">Under 2.5 (63%)</td>
+          <td class="ou">43%</td>
           <td class="pick pick-elo">1 (77%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -126,6 +136,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.7 &ndash; 1.4</td>
           <td class="probs">43% / 26% / 31%</td>
+          <td class="ou">Over 2.5 (59%)</td>
+          <td class="ou">62%</td>
           <td class="pick pick-elo">1 (54%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -137,6 +149,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.5 &ndash; 1.0</td>
           <td class="probs">48% / 29% / 24%</td>
+          <td class="ou">Under 2.5 (55%)</td>
+          <td class="ou">50%</td>
           <td class="pick pick-elo">1 (66%)</td>
           <td class="pick pick-market">1 (56%)</td>
         </tr>
@@ -148,6 +162,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.8 &ndash; 1.0</td>
           <td class="probs">56% / 25% / 19%</td>
+          <td class="ou">Over 2.5 (54%)</td>
+          <td class="ou">54%</td>
           <td class="pick pick-elo">1 (69%)</td>
           <td class="pick pick-market">1 (50%)</td>
         </tr>
@@ -159,6 +175,8 @@
           <td class="score">1-0</td>
           <td class="xg">1.7 &ndash; 0.8</td>
           <td class="probs">56% / 27% / 17%</td>
+          <td class="ou">Under 2.5 (55%)</td>
+          <td class="ou">46%</td>
           <td class="pick pick-elo">1 (83%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -170,6 +188,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.4 &ndash; 0.9</td>
           <td class="probs">47% / 30% / 23%</td>
+          <td class="ou">Under 2.5 (61%)</td>
+          <td class="ou">45%</td>
           <td class="pick pick-elo">1 (55%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -181,6 +201,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.4 &ndash; 1.1</td>
           <td class="probs">43% / 29% / 28%</td>
+          <td class="ou">Under 2.5 (55%)</td>
+          <td class="ou">51%</td>
           <td class="pick pick-elo">2 (50%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -192,6 +214,8 @@
           <td class="score">2-0</td>
           <td class="xg">2.3 &ndash; 0.6</td>
           <td class="probs">75% / 18% / 8%</td>
+          <td class="ou">Over 2.5 (57%)</td>
+          <td class="ou">44%</td>
           <td class="pick pick-elo">1 (75%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -204,7 +228,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th><th>Ακρίβεια Αγοράς</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ. (4)</th></tr>
     </thead>
     <tbody>
       
@@ -262,7 +286,7 @@
           <td>-</td>
           <td>-</td>
           <td>1%</td>
-          <td>71%</td>
+          <td>70%</td>
           <td>0%</td>
         </tr>
         <tr class="zone-top4">
@@ -281,7 +305,7 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>30%</td>
+          <td>32%</td>
           <td>0%</td>
         </tr>
         <tr class="">
@@ -319,7 +343,7 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>34%</td>
+          <td>32%</td>
           <td>0%</td>
         </tr>
         <tr class="">
@@ -338,8 +362,8 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>5%</td>
-          <td>1%</td>
+          <td>4%</td>
+          <td>4%</td>
         </tr>
         <tr class="">
           <td>8</td>
@@ -357,8 +381,8 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>14%</td>
-          <td>0%</td>
+          <td>15%</td>
+          <td>1%</td>
         </tr>
         <tr class="">
           <td>9</td>
@@ -376,7 +400,7 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>10%</td>
+          <td>9%</td>
           <td>1%</td>
         </tr>
         <tr class="">
@@ -395,8 +419,8 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>9%</td>
-          <td>1%</td>
+          <td>10%</td>
+          <td>2%</td>
         </tr>
         <tr class="">
           <td>11</td>
@@ -415,7 +439,7 @@
           <td>-</td>
           <td>0%</td>
           <td>1%</td>
-          <td>4%</td>
+          <td>9%</td>
         </tr>
         <tr class="">
           <td>12</td>
@@ -433,8 +457,8 @@
           <td>-</td>
           <td>-</td>
           <td>0%</td>
-          <td>8%</td>
-          <td>1%</td>
+          <td>9%</td>
+          <td>2%</td>
         </tr>
         <tr class="">
           <td>13</td>
@@ -453,7 +477,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>7%</td>
+          <td>14%</td>
         </tr>
         <tr class="">
           <td>14</td>
@@ -472,7 +496,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>21%</td>
+          <td>34%</td>
         </tr>
         <tr class="">
           <td>15</td>
@@ -491,7 +515,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>28%</td>
+          <td>42%</td>
         </tr>
         <tr class="">
           <td>16</td>
@@ -510,9 +534,9 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>22%</td>
+          <td>35%</td>
         </tr>
-        <tr class="">
+        <tr class="zone-releg">
           <td>17</td>
           <td class="team">Grêmio FBPA</td>
           <td>20</td>
@@ -529,7 +553,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>21%</td>
+          <td>34%</td>
         </tr>
         <tr class="zone-releg">
           <td>18</td>
@@ -548,7 +572,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>43%</td>
+          <td>58%</td>
         </tr>
         <tr class="zone-releg">
           <td>19</td>
@@ -567,7 +591,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>51%</td>
+          <td>64%</td>
         </tr>
         <tr class="zone-releg">
           <td>20</td>
@@ -593,7 +617,7 @@
 </section>
 <section id="season2025" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2025</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 380 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>12%</b> ακριβές σκορ<br>Elo (σε 380 αγώνες): <b>49%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -603,7 +627,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ. (4)</th></tr>
     </thead>
     <tbody>
       
@@ -911,7 +935,7 @@
           <td>0%</td>
           <td>0%</td>
         </tr>
-        <tr class="">
+        <tr class="zone-releg">
           <td>17</td>
           <td class="team">Ceará SC</td>
           <td>38</td>
@@ -928,7 +952,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>0%</td>
+          <td>100%</td>
         </tr>
         <tr class="zone-releg">
           <td>18</td>
@@ -992,7 +1016,7 @@
 </section>
 <section id="season2024" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2024</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 380 αγώνες): <b>49%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>15%</b> ακριβές σκορ<br>Elo (σε 380 αγώνες): <b>48%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -1002,7 +1026,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ. (4)</th></tr>
     </thead>
     <tbody>
       
@@ -1310,7 +1334,7 @@
           <td>0%</td>
           <td>0%</td>
         </tr>
-        <tr class="">
+        <tr class="zone-releg">
           <td>17</td>
           <td class="team">CA Paranaense</td>
           <td>38</td>
@@ -1327,7 +1351,7 @@
           <td>-</td>
           <td>0%</td>
           <td>0%</td>
-          <td>0%</td>
+          <td>100%</td>
         </tr>
         <tr class="zone-releg">
           <td>18</td>
@@ -1391,7 +1415,7 @@
 </section>
 <section id="season2023" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2023</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 370 αγώνες): <b>47%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>13%</b> ακριβές σκορ<br>Elo (σε 370 αγώνες): <b>45%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -1401,7 +1425,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ. (4)</th></tr>
     </thead>
     <tbody>
       
@@ -1709,7 +1733,7 @@
           <td>-</td>
           <td>-</td>
         </tr>
-        <tr class="">
+        <tr class="zone-releg">
           <td>17</td>
           <td class="team">Santos FC</td>
           <td>38</td>
@@ -18535,7 +18559,9 @@
     &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
     Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
     μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
-    δεδομένα Premier League).</footer>
+    δεδομένα Premier League). Η ετικέτα <span class="value-badge" style="margin-left:0">&#9650; value</span>
+    σημαίνει ότι το Poisson δίνει αισθητά μεγαλύτερη πιθανότητα από την
+    αγορά στην ίδια έκβαση -- καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.</footer>
   <script>
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(function (el) {

@@ -125,12 +125,13 @@ def run_backtest(code: str, season: int) -> None:
         print(f"Προσομοίωση όλης της σεζόν ({simulate.N_SIMULATIONS} φορές) με ό,τι "
               f"ήξερε το μοντέλο ΠΡΙΝ την 1η αγωνιστική...")
         all_matches = db.season_matches(season, competition=code)
-        sim = simulate.simulate_season(preseason_model, all_matches, season)
+        sim = simulate.simulate_season(preseason_model, all_matches, season,
+                                        top_n=comp["top_zone"], releg_n=comp["releg_zone"])
 
     note = (f"Backtest: αναπαραγωγή της σεζόν {label} αγωνιστική προς "
             f"αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη "
             f"γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι "
-            f"στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η "
+            f"στήλες Τίτλος/Top-N/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η "
             f"αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση (γι' αυτό μπορεί να "
             f"δείχνουν υπερβολικά σίγουρες τιμές όπως 100% — έχουν μόνο ένα έτος δεδομένων "
             f"να στηριχτούν) — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.")

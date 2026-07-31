@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calibration &mdash; Predictor</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
+          color:#e0e6ed; margin:0; padding:2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; }
+  h2 { color:#fff; font-size:1.1rem; margin:2rem 0 0.6rem; }
+  .subtitle { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; max-width:60rem; line-height:1.5; }
+  .back-link { display:inline-block; color:#9db4c0; text-decoration:none; font-size:0.85rem;
+               margin-bottom:0.8rem; }
+  .back-link:hover { color:#fff; }
+  table { width:100%; max-width:46rem; border-collapse:collapse; background:#132a3e;
+          border-radius:8px; overflow:hidden; font-size:0.88rem; margin-bottom:0.5rem; }
+  th, td { padding:0.5rem 0.7rem; text-align:center; }
+  th { background:#1c3a52; color:#9db4c0; font-weight:600; text-transform:uppercase;
+       font-size:0.7rem; letter-spacing:0.03em; }
+  tr:nth-child(even) { background:#0f2436; }
+  .bar-cell { text-align:left; min-width:10rem; }
+  .bar-track { background:#1c3a52; border-radius:4px; height:0.9rem; position:relative;
+               overflow:hidden; }
+  .bar-fill { background:#4ade80; height:100%; border-radius:4px; }
+  .bar-fill.pred { background:#5c7182; }
+  .n-note { color:#5c7182; font-size:0.78rem; }
+  footer { margin-top:2.5rem; color:#5c7182; font-size:0.8rem; }
+</style>
+</head>
+<body>
+  <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
+  <h1>Πόσο "σωστές" είναι οι πιθανότητες;</h1>
+  <div class="subtitle">Ομαδοποιούμε όλες τις προβλέψεις κάθε μοντέλου (σε όλα τα πρωταθλήματα
+    και τις σεζόν που έχουμε) ανάλογα με τη δηλωμένη πιθανότητα της έκβασης που προβλέφθηκε,
+    και συγκρίνουμε με το πραγματικό ποσοστό επιτυχίας σε κάθε ομάδα. Αν το μοντέλο είναι
+    "καλά βαθμονομημένο", οι δύο στήλες (δηλωμένη / πραγματικό) πρέπει να είναι κοντά --
+    π.χ. στους αγώνες που δώσαμε ~70% σε μια έκβαση, θα έπρεπε να κερδίζει περίπου το 70%
+    των φορών. Αν το πραγματικό ποσοστό είναι σταθερά χαμηλότερο, το μοντέλο είναι υπερβολικά
+    σίγουρο (overconfident)· αν είναι ψηλότερο, είναι υπερβολικά συντηρητικό.</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 18:00</div>
+  
+    <h2>Poisson <span class="n-note">(9803 προβλέψεις συνολικά, όλα τα πρωταθλήματα/σεζόν)</span></h2>
+    <table>
+      <thead>
+        <tr><th>Δηλωμένη πιθανότητα</th><th>Ν</th><th>Μ.Ο. δηλωμένη</th>
+            <th>Πραγματικό ποσοστό</th><th>Πραγματικό (γράφημα)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>33-45%</td>
+          <td>4604</td>
+          <td>40%</td>
+          <td>41%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:41%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>45-55%</td>
+          <td>3320</td>
+          <td>49%</td>
+          <td>51%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:51%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>55-65%</td>
+          <td>1303</td>
+          <td>59%</td>
+          <td>64%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:64%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>65-75%</td>
+          <td>448</td>
+          <td>69%</td>
+          <td>73%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:73%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>75-85%</td>
+          <td>119</td>
+          <td>79%</td>
+          <td>87%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:87%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>85-101%</td>
+          <td>9</td>
+          <td>88%</td>
+          <td>67%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:67%; background:#facc15;"></div>
+            </div>
+          </td>
+        </tr></tbody>
+    </table>
+    <h2>Elo <span class="n-note">(9803 προβλέψεις συνολικά, όλα τα πρωταθλήματα/σεζόν)</span></h2>
+    <table>
+      <thead>
+        <tr><th>Δηλωμένη πιθανότητα</th><th>Ν</th><th>Μ.Ο. δηλωμένη</th>
+            <th>Πραγματικό ποσοστό</th><th>Πραγματικό (γράφημα)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>33-45%</td>
+          <td>1232</td>
+          <td>43%</td>
+          <td>38%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:38%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>45-55%</td>
+          <td>2624</td>
+          <td>50%</td>
+          <td>42%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:42%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>55-65%</td>
+          <td>2381</td>
+          <td>60%</td>
+          <td>48%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:48%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>65-75%</td>
+          <td>1694</td>
+          <td>70%</td>
+          <td>55%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:55%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>75-85%</td>
+          <td>1167</td>
+          <td>79%</td>
+          <td>64%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:64%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>85-101%</td>
+          <td>705</td>
+          <td>90%</td>
+          <td>78%</td>
+          <td class="bar-cell">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:78%; background:#60a5fa;"></div>
+            </div>
+          </td>
+        </tr></tbody>
+    </table>
+  <footer>Υπολογίζεται από όλα τα ήδη τελειωμένα ματς (backtest ιστορικών σεζόν + ό,τι
+    έχει ήδη παιχτεί φέτος) σε όλα τα πρωταθλήματα -- τρέξε <code>python calibration.py</code>
+    για να ξαναϋπολογιστεί μετά από νέα δεδομένα.</footer>
+</body>
+</html>

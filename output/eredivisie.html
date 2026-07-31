@@ -35,9 +35,13 @@
   .pick { font-weight:700; color:#facc15; }
   .pick-elo { color:#60a5fa; }
   .pick-market { color:#c084fc; }
+  .value-badge { display:inline-block; background:#164e3488; color:#4ade80; font-size:0.68rem;
+                 font-weight:700; padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.3rem;
+                 vertical-align:middle; cursor:help; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
+  .ou { color:#7fa3b8; font-size:0.85rem; }
   .points { font-weight:700; color:#fff; }
   .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
   .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
@@ -68,7 +72,7 @@
 <body>
   <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
   <h1><img src="https://crests.football-data.org/ED.png" alt="" class="league-logo">Eredivisie &mdash; Προβλέψεις</h1>
-  <div class="generated">ενημερώθηκε 31/07/2026 17:08</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 18:00</div>
   <nav><button data-target="current" class="active" onclick="showTab('current')">Τρέχουσα σεζόν 2026-2027</button><button data-target="season2025" class="" onclick="showTab('season2025')">2025-2026</button><button data-target="season2024" class="" onclick="showTab('season2024')">2024-2025</button><button data-target="season2023" class="" onclick="showTab('season2023')">2023-2024</button><button data-target="detail-current" class="" onclick="showTab('detail-current')">Αναλυτικά 2026-2027</button><button data-target="detail-2025" class="" onclick="showTab('detail-2025')">Αναλυτικά 2025-2026</button><button data-target="detail-2024" class="" onclick="showTab('detail-2024')">Αναλυτικά 2024-2025</button><button data-target="detail-2023" class="" onclick="showTab('detail-2023')">Αναλυτικά 2023-2024</button></nav>
   
 <section id="current" class="tab-panel" style="display:block">
@@ -81,7 +85,7 @@
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
           <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
-          <th>1 / Χ / 2</th><th>Πρόβλεψη Elo</th><th>Πρόβλεψη Αγοράς</th></tr>
+          <th>1 / Χ / 2</th><th>O/U 2.5</th><th>BTTS</th><th>Πρόβλεψη Elo</th><th>Πρόβλεψη Αγοράς</th></tr>
     </thead>
     <tbody>
       
@@ -93,6 +97,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.8 &ndash; 1.5</td>
           <td class="probs">44% / 25% / 31%</td>
+          <td class="ou">Over 2.5 (64%)</td>
+          <td class="ou">66%</td>
           <td class="pick pick-elo">1 (60%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -104,6 +110,8 @@
           <td class="score">1-1</td>
           <td class="xg">2.0 &ndash; 1.2</td>
           <td class="probs">55% / 23% / 22%</td>
+          <td class="ou">Over 2.5 (64%)</td>
+          <td class="ou">63%</td>
           <td class="pick pick-elo">1 (69%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -115,6 +123,8 @@
           <td class="score">1-1</td>
           <td class="xg">2.1 &ndash; 1.3</td>
           <td class="probs">54% / 23% / 23%</td>
+          <td class="ou">Over 2.5 (67%)</td>
+          <td class="ou">66%</td>
           <td class="pick pick-elo">1 (46%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -126,6 +136,8 @@
           <td class="score">3-1</td>
           <td class="xg">3.4 &ndash; 1.4</td>
           <td class="probs">75% / 14% / 11%</td>
+          <td class="ou">Over 2.5 (85%)</td>
+          <td class="ou">72%</td>
           <td class="pick pick-elo">1 (91%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -137,6 +149,8 @@
           <td class="score">2-1</td>
           <td class="xg">2.3 &ndash; 1.4</td>
           <td class="probs">57% / 21% / 22%</td>
+          <td class="ou">Over 2.5 (71%)</td>
+          <td class="ou">68%</td>
           <td class="pick pick-elo">1 (60%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -148,6 +162,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.0 &ndash; 1.8</td>
           <td class="probs">20% / 25% / 55%</td>
+          <td class="ou">Over 2.5 (54%)</td>
+          <td class="ou">55%</td>
           <td class="pick pick-elo">2 (59%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -159,6 +175,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.6 &ndash; 1.2</td>
           <td class="probs">45% / 27% / 28%</td>
+          <td class="ou">Over 2.5 (52%)</td>
+          <td class="ou">57%</td>
           <td class="pick pick-elo">2 (41%)</td>
           <td class="pick pick-market">1 (40%)</td>
         </tr>
@@ -170,6 +188,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.1 &ndash; 1.5</td>
           <td class="probs">26% / 28% / 45%</td>
+          <td class="ou">Under 2.5 (52%)</td>
+          <td class="ou">53%</td>
           <td class="pick pick-elo">2 (53%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -181,6 +201,8 @@
           <td class="score">1-1</td>
           <td class="xg">1.7 &ndash; 1.7</td>
           <td class="probs">37% / 25% / 38%</td>
+          <td class="ou">Over 2.5 (65%)</td>
+          <td class="ou">67%</td>
           <td class="pick pick-elo">1 (42%)</td>
           <td class="pick pick-market">-</td>
         </tr>
@@ -193,7 +215,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th><th>Ακρίβεια Αγοράς</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-3</th><th>Υποβ. (3)</th></tr>
     </thead>
     <tbody>
       <tr><td colspan="16">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για βαθμολογία.</td></tr>
@@ -202,7 +224,7 @@
 </section>
 <section id="season2025" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2025-2026</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 306 αγώνες): <b>50%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>14%</b> ακριβές σκορ<br>Elo (σε 306 αγώνες): <b>50%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -212,7 +234,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-3</th><th>Υποβ. (3)</th></tr>
     </thead>
     <tbody>
       
@@ -273,7 +295,7 @@
           <td>100%</td>
           <td>0%</td>
         </tr>
-        <tr class="zone-top4">
+        <tr class="">
           <td>4</td>
           <td class="team">FC Twente '65</td>
           <td>34</td>
@@ -289,7 +311,7 @@
           <td>47% <span class="acc-n">(34)</span></td>
           <td>-</td>
           <td>0%</td>
-          <td>100%</td>
+          <td>0%</td>
           <td>0%</td>
         </tr>
         <tr class="">
@@ -563,7 +585,7 @@
 </section>
 <section id="season2024" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2024-2025</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>14%</b> ακριβές σκορ<br>Elo (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -573,7 +595,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-3</th><th>Υποβ. (3)</th></tr>
     </thead>
     <tbody>
       
@@ -634,7 +656,7 @@
           <td>100%</td>
           <td>0%</td>
         </tr>
-        <tr class="zone-top4">
+        <tr class="">
           <td>4</td>
           <td class="team">FC Utrecht</td>
           <td>34</td>
@@ -650,7 +672,7 @@
           <td>47% <span class="acc-n">(34)</span></td>
           <td>-</td>
           <td>0%</td>
-          <td>100%</td>
+          <td>0%</td>
           <td>0%</td>
         </tr>
         <tr class="">
@@ -924,7 +946,7 @@
 </section>
 <section id="season2023" class="tab-panel" style="display:none">
   <div class="meta">Σεζόν 2023-2024</div>
-  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
+  <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
   <div class="accuracy">Poisson (σε 297 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>11%</b> ακριβές σκορ<br>Elo (σε 297 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2</div>
   
 
@@ -934,7 +956,7 @@
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
           <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
-          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+          <th>Τίτλος</th><th>Top-3</th><th>Υποβ. (3)</th></tr>
     </thead>
     <tbody>
       
@@ -995,7 +1017,7 @@
           <td>-</td>
           <td>-</td>
         </tr>
-        <tr class="zone-top4">
+        <tr class="">
           <td>4</td>
           <td class="team">AZ</td>
           <td>34</td>
@@ -14910,7 +14932,9 @@
     &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
     Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
     μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
-    δεδομένα Premier League).</footer>
+    δεδομένα Premier League). Η ετικέτα <span class="value-badge" style="margin-left:0">&#9650; value</span>
+    σημαίνει ότι το Poisson δίνει αισθητά μεγαλύτερη πιθανότητα από την
+    αγορά στην ίδια έκβαση -- καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.</footer>
   <script>
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(function (el) {

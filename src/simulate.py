@@ -16,13 +16,16 @@ import numpy as np
 from . import predictor
 
 N_SIMULATIONS = 3000
-TOP4 = 4
-RELEGATION_SPOTS = 3  # οι τελευταίες 3 θέσεις μιας 20άδας
+TOP4 = 4  # προεπιλογή -- βλ. παράμετρο top_n παρακάτω για ρύθμιση ανά πρωτάθλημα
+RELEGATION_SPOTS = 3  # προεπιλογή -- βλ. παράμετρο releg_n παρακάτω
 
 
-def simulate_season(model: dict, all_matches: list[dict], season: int) -> dict[int, dict]:
+def simulate_season(model: dict, all_matches: list[dict], season: int,
+                     top_n: int = TOP4, releg_n: int = RELEGATION_SPOTS) -> dict[int, dict]:
     """all_matches: όλοι οι αγώνες της σεζόν (τελειωμένοι + προγραμματισμένοι).
-    Επιστρέφει team_id -> {"title_pct", "top4_pct", "relegation_pct"}."""
+    top_n/releg_n: μέγεθος της "κορυφαίας" και της "υποβιβαστικής" ζώνης --
+    διαφέρει ανά πρωτάθλημα (βλ. src/competitions.py). Επιστρέφει
+    team_id -> {"title_pct", "top4_pct", "relegation_pct"}."""
 
     finished = [m for m in all_matches if m.get("status") == "FINISHED"
                 and m.get("home_score") is not None and m.get("away_score") is not None]
@@ -105,9 +108,9 @@ def simulate_season(model: dict, all_matches: list[dict], season: int) -> dict[i
 
         champion = order[0]
         title[champion] += 1
-        for pos_i in order[:TOP4]:
+        for pos_i in order[:top_n]:
             top4[pos_i] += 1
-        for pos_i in order[-RELEGATION_SPOTS:]:
+        for pos_i in order[-releg_n:]:
             releg[pos_i] += 1
 
     out = {}

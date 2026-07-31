@@ -381,6 +381,22 @@ def predictions_for_season(season: int, model: str = "poisson", competition: str
         return {r["match_id"]: dict(r) for r in rows}
 
 
+def all_predictions_with_results(model: str = "poisson") -> list[dict]:
+    """Όλες οι προβλέψεις ΕΝΟΣ μοντέλου με το πραγματικό αποτέλεσμα, σε ΟΛΑ
+    τα πρωταθλήματα και τις σεζόν που έχουμε στη βάση -- για το calibration
+    check (πόσο "καλά βαθμονομημένες" είναι οι πιθανότητες συνολικά)."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT m.competition, m.season, m.home_score, m.away_score,
+                      p.prob_home, p.prob_draw, p.prob_away
+               FROM matches m JOIN predictions p ON p.match_id = m.id
+               WHERE p.model=? AND m.status='FINISHED'
+                 AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
+            (model,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def save_predictions(preds: list[dict]) -> None:
     """Κάθε dict στο preds πρέπει να έχει "match_id" και "model"
     ("poisson"/"elo"/"market"). Το predicted_home_score/away_score είναι

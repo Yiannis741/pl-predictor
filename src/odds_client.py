@@ -44,6 +44,99 @@ _STRIP_TOKENS = {
 }
 
 
+# Χειροποίητα ταιριάσματα ονόματος (Odds API -> football-data.org) για
+# πρωταθλήματα όπου η γενική κανονικοποίηση αστοχεί συχνά (διαφορετική
+# γλώσσα/επίσημο όνομα, π.χ. "Bayern Munich" vs "FC Bayern München"). Δεν
+# χρειάζεται για την Premier League/Championship -- εκεί η κανονικοποίηση
+# αρκεί σχεδόν πάντα. Δεν είναι πλήρες (ενδέχεται να λείπουν ομάδες που δεν
+# εμφανίστηκαν στο δείγμα αγώνων κατά την κατασκευή του λεξικού) -- ό,τι
+# λείπει πέφτει στη γενική κανονικοποίηση σαν fallback.
+LEAGUE_NAME_OVERRIDES = {
+    "soccer_spain_la_liga": {
+        "Alavés": "Deportivo Alavés",
+        "Getafe": "Getafe CF",
+        "Sevilla": "Sevilla FC",
+        "Rayo Vallecano": "Rayo Vallecano de Madrid",
+        "Villarreal": "Villarreal CF",
+        "Espanyol": "RCD Espanyol de Barcelona",
+        "Levante": "Levante UD",
+        "Celta Vigo": "RC Celta de Vigo",
+        "Deportivo La Coruña": "RC Deportivo La Coruña",
+        "Atlético Madrid": "Club Atlético de Madrid",
+        "Málaga": "Málaga CF",
+        "Valencia": "Valencia CF",
+        "Real Betis": "Real Betis Balompié",
+        "Real Madrid": "Real Madrid CF",
+        "Real Sociedad": "Real Sociedad de Fútbol",
+        "Barcelona": "FC Barcelona",
+        "Athletic Bilbao": "Athletic Club",
+        "Girona": "Girona FC",
+        "Mallorca": "RCD Mallorca",
+    },
+    "soccer_germany_bundesliga": {
+        "Augsburg": "FC Augsburg",
+        "Bayer Leverkusen": "Bayer 04 Leverkusen",
+        "Bayern Munich": "FC Bayern München",
+        "Borussia Monchengladbach": "Borussia Mönchengladbach",
+        "Elversberg": "SV 07 Elversberg",
+        "FSV Mainz 05": "1. FSV Mainz 05",
+        "Mainz": "1. FSV Mainz 05",
+        "SC Paderborn": "SC Paderborn 07",
+        "TSG Hoffenheim": "TSG 1899 Hoffenheim",
+        "Union Berlin": "1. FC Union Berlin",
+        "Werder Bremen": "SV Werder Bremen",
+        "Heidenheim": "1. FC Heidenheim 1846",
+        "St. Pauli": "FC St. Pauli 1910",
+        "Wolfsburg": "VfL Wolfsburg",
+        "Köln": "1. FC Köln",
+        "FC Cologne": "1. FC Köln",
+    },
+    "soccer_italy_serie_a": {
+        "Bologna": "Bologna FC 1909",
+        "Cagliari": "Cagliari Calcio",
+        "Como": "Como 1907",
+        "Fiorentina": "ACF Fiorentina",
+        "Frosinone": "Frosinone Calcio",
+        "Genoa": "Genoa CFC",
+        "Inter Milan": "FC Internazionale Milano",
+        "Juventus": "Juventus FC",
+        "Lazio": "SS Lazio",
+        "Lecce": "US Lecce",
+        "Monza": "AC Monza",
+        "Napoli": "SSC Napoli",
+        "Parma": "Parma Calcio 1913",
+        "Sassuolo": "US Sassuolo Calcio",
+        "Torino": "Torino FC",
+        "Udinese": "Udinese Calcio",
+        "Venezia": "Venezia FC",
+        "Verona": "Hellas Verona FC",
+        "Cremonese": "US Cremonese",
+        "Pisa": "AC Pisa 1909",
+    },
+    "soccer_france_ligue_one": {
+        "Angers": "Angers SCO",
+        "AS Monaco": "AS Monaco FC",
+        "Auxerre": "AJ Auxerre",
+        "Brest": "Stade Brestois 29",
+        "Le Havre": "Le Havre AC",
+        "Lille": "Lille OSC",
+        "Lorient": "FC Lorient",
+        "Lyon": "Olympique Lyonnais",
+        "Marseille": "Olympique de Marseille",
+        "Nice": "OGC Nice",
+        "Paris Saint Germain": "Paris Saint-Germain FC",
+        "RC Lens": "Racing Club de Lens",
+        "Lens": "Racing Club de Lens",
+        "Rennes": "Stade Rennais FC 1901",
+        "Strasbourg": "RC Strasbourg Alsace",
+        "Toulouse": "Toulouse FC",
+        "Troyes": "ES Troyes AC",
+        "Metz": "FC Metz",
+        "Nantes": "FC Nantes",
+    },
+}
+
+
 def _normalize(name: str) -> str:
     if not name:
         return ""
@@ -152,14 +245,22 @@ def fetch_predictions_by_team_names(sport_key: str) -> dict[tuple[str, str], dic
     # ώστε συγκρούσεις ανάμεσα σε πρωταθλήματα να είναι απίθανες).
     known = db.team_names()
     norm_to_official = {_normalize(t["name"]): t["name"] for t in known.values() if t.get("name")}
+    overrides = LEAGUE_NAME_OVERRIDES.get(sport_key, {})
+
+    def resolve(raw_name: str) -> str | None:
+        # 1) χειροποίητο λεξικό ανά πρωτάθλημα (αν υπάρχει) 2) γενική
+        # κανονικοποίηση σαν fallback.
+        if raw_name in overrides:
+            return overrides[raw_name]
+        return norm_to_official.get(_normalize(raw_name))
 
     out = {}
     for ev in events:
         r = extract_match_odds(ev)
         if not r:
             continue
-        home_official = norm_to_official.get(_normalize(r["home_name_raw"]))
-        away_official = norm_to_official.get(_normalize(r["away_name_raw"]))
+        home_official = resolve(r["home_name_raw"])
+        away_official = resolve(r["away_name_raw"])
         if not home_official or not away_official:
             continue
         out[(home_official, away_official)] = r

@@ -130,7 +130,8 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
 
     print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές, μοντέλο Poisson)...")
     all_matches = db.season_matches(season, competition=code)
-    sim = simulate.simulate_season(model, all_matches, season)
+    sim = simulate.simulate_season(model, all_matches, season,
+                                    top_n=comp["top_zone"], releg_n=comp["releg_zone"])
 
     current_label = f"Τρέχουσα σεζόν {label_now}"
     sections = [{
@@ -180,7 +181,8 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
         if prev_hist:
             hist_preseason_model = predictor.compute_strengths(prev_hist)
             if hist_preseason_model is not None:
-                hist_sim = simulate.simulate_season(hist_preseason_model, hist_matches, hist_season)
+                hist_sim = simulate.simulate_season(hist_preseason_model, hist_matches, hist_season,
+                                                     top_n=comp["top_zone"], releg_n=comp["releg_zone"])
 
         hist_label = competitions.season_label(hist_season, code)
         print(f"  προσθήκη καρτέλας {hist_label} ({len(hist_table)} ομάδες στη βαθμολογία)")
@@ -193,7 +195,7 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
                 accuracy=hist_accuracy, sim=hist_sim, team_accuracy=hist_team_accuracy,
                 elo_accuracy=hist_elo_accuracy, elo_team_accuracy=hist_elo_team_accuracy,
                 note="Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε "
-                     "το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-4/Υποβ. "
+                     "το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. "
                      "= τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.",
                 competition=code,
             ),

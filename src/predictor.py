@@ -218,6 +218,14 @@ def predict_match(model: dict, home_id: int, away_id: int,
     if total > 0:
         p_home, p_draw, p_away = p_home / total, p_draw / total, p_away / total
 
+    # Over/Under 2.5 γκολ και "σκοράρουν και οι δύο" (BTTS) -- βγαίνουν
+    # σχεδόν δωρεάν από τον ίδιο πίνακα Poisson που ήδη χτίσαμε, καμία
+    # επιπλέον υπόθεση χρειάζεται.
+    prob_over25 = sum(matrix[i][j] for i in range(MAX_GOALS + 1) for j in range(MAX_GOALS + 1)
+                       if i + j > 2)
+    prob_btts = sum(matrix[i][j] for i in range(MAX_GOALS + 1) for j in range(MAX_GOALS + 1)
+                     if i > 0 and j > 0)
+
     best_i, best_j, best_p = 0, 0, -1.0
     for i in range(MAX_GOALS + 1):
         for j in range(MAX_GOALS + 1):
@@ -247,4 +255,6 @@ def predict_match(model: dict, home_id: int, away_id: int,
         "prob_draw": p_draw,
         "prob_away": p_away,
         "predicted_outcome": predicted_outcome,
+        "prob_over25": prob_over25,
+        "prob_btts": prob_btts,
     }

@@ -14,60 +14,68 @@ import datetime
 # single_year_season: True για πρωταθλήματα που τρέχουν μέσα σε ΕΝΑ
 #   ημερολογιακό έτος (π.χ. Βραζιλία, Μάρτιος-Δεκέμβριος) αντί για τη
 #   συνηθισμένη ευρωπαϊκή σεζόν Αύγουστος-Μάιος που καλύπτει δύο έτη.
+# top_zone / releg_zone: πόσες θέσεις φωτίζονται σαν "κορυφή" (Ευρωπαϊκή
+# ζώνη ή πρωτάθλημα) και "υποβιβασμός" στη βαθμολογία/προσομοίωση. Είναι
+# ΠΡΟΣΕΓΓΙΣΗ, όχι ακριβής κωδικοποίηση των κανόνων κάθε πρωταθλήματος (π.χ.
+# δεν ξεχωρίζουμε "άμεσος υποβιβασμός" από "playoff υποβιβασμού") -- στόχος
+# είναι να δείχνει ρεαλιστικό μέγεθος ζώνης αντί για γενικό top4/bottom3
+# παντού. Π.χ. Championship: top6 (2 άμεση άνοδος + 4 στα playoff), Brasil:
+# 4 υποβιβάζονται (όχι 3), Bundesliga/Ligue 1/Eredivisie/Primeira Liga: 18
+# ομάδες, μικρότερος πίνακας.
 COMPETITIONS = [
     {
         "code": "PL", "name": "Premier League", "country": "Αγγλία",
         "emblem": "https://crests.football-data.org/PL.png",
         "slug": "premier-league", "odds_sport": "soccer_epl",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 4, "releg_zone": 3,
     },
     {
         "code": "ELC", "name": "Championship", "country": "Αγγλία",
         "emblem": "https://crests.football-data.org/ELC.png",
         "slug": "championship", "odds_sport": "soccer_efl_champ",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 6, "releg_zone": 3,
     },
     {
         "code": "PD", "name": "La Liga", "country": "Ισπανία",
         "emblem": "https://crests.football-data.org/laliga.png",
         "slug": "la-liga", "odds_sport": "soccer_spain_la_liga",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 4, "releg_zone": 3,
     },
     {
         "code": "BL1", "name": "Bundesliga", "country": "Γερμανία",
         "emblem": "https://crests.football-data.org/BL1.png",
         "slug": "bundesliga", "odds_sport": "soccer_germany_bundesliga",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 4, "releg_zone": 3,
     },
     {
         "code": "SA", "name": "Serie A", "country": "Ιταλία",
         "emblem": "https://crests.football-data.org/c111.png",
         "slug": "serie-a", "odds_sport": "soccer_italy_serie_a",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 4, "releg_zone": 3,
     },
     {
         "code": "FL1", "name": "Ligue 1", "country": "Γαλλία",
         "emblem": "https://crests.football-data.org/FL1.png",
         "slug": "ligue-1", "odds_sport": "soccer_france_ligue_one",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 4, "releg_zone": 3,
     },
     {
         "code": "DED", "name": "Eredivisie", "country": "Ολλανδία",
         "emblem": "https://crests.football-data.org/ED.png",
         "slug": "eredivisie", "odds_sport": "soccer_netherlands_eredivisie",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 3, "releg_zone": 3,
     },
     {
         "code": "PPL", "name": "Primeira Liga", "country": "Πορτογαλία",
         "emblem": "https://crests.football-data.org/PPL.png",
         "slug": "primeira-liga", "odds_sport": "soccer_portugal_primeira_liga",
-        "single_year_season": False,
+        "single_year_season": False, "top_zone": 3, "releg_zone": 3,
     },
     {
         "code": "BSA", "name": "Campeonato Brasileiro Série A", "country": "Βραζιλία",
         "emblem": "https://crests.football-data.org/bsa.png",
         "slug": "brasileirao", "odds_sport": "soccer_brazil_campeonato",
-        "single_year_season": True,
+        "single_year_season": True, "top_zone": 4, "releg_zone": 4,
     },
 ]
 
