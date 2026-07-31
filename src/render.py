@@ -5,7 +5,7 @@
 
 import datetime
 
-from . import config, db
+from . import competitions, config, db
 
 FORM_LABELS = {"W": "Ν", "D": "Ι", "L": "Η"}  # Νίκη / Ισοπαλία / Ήττα
 OUTCOME_LABELS = {"H": "1", "D": "Χ", "A": "2"}
@@ -170,7 +170,8 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
                    elo_team_accuracy: dict | None = None,
                    market_accuracy: dict | None = None,
                    market_team_accuracy: dict | None = None,
-                   note: str | None = None, active: bool = False) -> str:
+                   note: str | None = None, active: bool = False,
+                   competition: str = "PL") -> str:
     """Χτίζει το περιεχόμενο ΜΙΑΣ καρτέλας (μία σεζόν). Καλείται μία φορά ανά
     σεζόν (τρέχουσα + ιστορικές) και οι καρτέλες συνδυάζονται στο
     render_site() παρακάτω. Το preds μπορεί να περιέχει προβλέψεις και από
@@ -216,9 +217,10 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     elo_acc_th = '<th>Ακρίβεια Elo</th>' if show_elo else ""
     market_acc_th = '<th>Ακρίβεια Αγοράς</th>' if show_market else ""
     display = "block" if active else "none"
+    season_txt = competitions.season_label(season, competition)
     return f"""
 <section id="{section_id}" class="tab-panel" style="display:{display}">
-  <div class="meta">Σεζόν {season}-{season + 1}</div>
+  <div class="meta">Σεζόν {season_txt}</div>
   {note_html}
   {accuracy_html}
   {fixtures_block}
@@ -260,7 +262,7 @@ def _pred_pick(p: dict | None) -> tuple[str, str | None]:
 def build_detail_section(section_id: str, label: str, season: int, matches: list[dict],
                           preds_by_match: dict, elo_preds_by_match: dict | None = None,
                           market_preds_by_match: dict | None = None,
-                          active: bool = False) -> str:
+                          active: bool = False, competition: str = "PL") -> str:
     """Αναλυτική καρτέλα: όλοι οι αγώνες της σεζόν, ομαδοποιημένοι ανά
     αγωνιστική μέσα σε &lt;details&gt; (κλειστά εξ ορισμού) ώστε η σελίδα να
     ανοίγει συμπαγής -- 380 αγώνες σε μία επίπεδη λίστα θα ήταν αδιάβαστοι.
@@ -352,9 +354,10 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
 
     display = "block" if active else "none"
     body = "".join(blocks) if blocks else "<p>Δεν υπάρχουν αγώνες.</p>"
+    season_txt = competitions.season_label(season, competition)
     return f"""
 <section id="{section_id}" class="tab-panel" style="display:{display}">
-  <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν {season}-{season + 1}</div>
+  <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν {season_txt}</div>
   {body}
 </section>"""
 
@@ -363,7 +366,11 @@ _CSS = """
   * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
           color:#e0e6ed; margin:0; padding:2rem; }
-  h1 { color:#fff; margin-bottom:0.2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; display:flex; align-items:center; gap:0.6rem; }
+  .league-logo { height:2rem; width:2rem; object-fit:contain; }
+  .back-link { display:inline-block; color:#9db4c0; text-decoration:none; font-size:0.85rem;
+               margin-bottom:0.8rem; }
+  .back-link:hover { color:#fff; }
   h3 { color:#fff; font-size:1.05rem; margin:2rem 0 0.7rem; }
   .meta { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
@@ -428,9 +435,12 @@ function showTab(id) {
 """
 
 
-def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
+def render_site(sections: list[dict], comp: dict | None = None,
+                 out_filename: str = "index.html") -> str:
     """sections: λίστα από {"id","label","html"} (βλ. build_section). Η πρώτη
-    καρτέλα είναι ενεργή κατά το άνοιγμα."""
+    καρτέλα είναι ενεργή κατά το άνοιγμα. comp: μεταδεδομένα πρωταθλήματος
+    (βλ. src/competitions.py) -- αν δοθούν, ο τίτλος/λογότυπο της σελίδας
+    και ο σύνδεσμος επιστροφής στο hub προσαρμόζονται ανάλογα."""
     generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
 
     nav_buttons = "".join(
@@ -440,16 +450,22 @@ def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
     )
     panels = "".join(s["html"] for s in sections)
 
+    page_title = comp["name"] if comp else "PL Predictor"
+    emblem_html = (f'<img src="{comp["emblem"]}" alt="" class="league-logo">' if comp else "")
+    back_link = ('<a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>'
+                 if comp else "")
+
     html = f"""<!DOCTYPE html>
 <html lang="el">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PL Predictor</title>
+<title>{page_title} &mdash; Προβλέψεις</title>
 <style>{_CSS}</style>
 </head>
 <body>
-  <h1>Premier League &mdash; Προβλέψεις</h1>
+  {back_link}
+  <h1>{emblem_html}{page_title} &mdash; Προβλέψεις</h1>
   <div class="generated">ενημερώθηκε {generated}</div>
   <nav>{nav_buttons}</nav>
   {panels}
@@ -462,13 +478,77 @@ def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
     πραγματικές αποδόσεις στοιχήματος, The Odds API -- μόνο ζωντανές, χωρίς
     ιστορικό, οπότε εμφανίζεται μόνο στην τρέχουσα σεζόν από εδώ και πέρα)
     &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
-    Poisson, χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+    Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
+    μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
+    δεδομένα Premier League).</footer>
   <script>{_JS}</script>
 </body>
 </html>"""
 
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = config.OUTPUT_DIR / out_filename
+    out_path.write_text(html, encoding="utf-8")
+    return str(out_path)
+
+
+_HUB_CSS = """
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
+          color:#e0e6ed; margin:0; padding:2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; }
+  .subtitle { color:#9db4c0; margin-bottom:2rem; font-size:0.95rem; }
+  .generated { color:#5c7182; font-size:0.8rem; margin-bottom:1.5rem; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+          gap:1rem; }
+  .card { background:#132a3e; border:1px solid #1c3a52; border-radius:10px;
+          padding:1.3rem; display:flex; align-items:center; gap:1rem;
+          text-decoration:none; color:#e0e6ed; transition:background 0.15s, border-color 0.15s; }
+  .card:hover { background:#1c3a52; border-color:#4ade80; }
+  .card img { height:3rem; width:3rem; object-fit:contain; flex-shrink:0; }
+  .card .info { min-width:0; }
+  .card .league-name { font-weight:700; color:#fff; font-size:1rem; }
+  .card .country { color:#9db4c0; font-size:0.82rem; margin-top:0.15rem; }
+  footer { margin-top:2.5rem; color:#5c7182; font-size:0.8rem; }
+"""
+
+
+def build_hub_page(available: list[dict]) -> str:
+    """Κεντρική σελίδα (output/index.html): κάρτες με το λογότυπο κάθε
+    πρωταθλήματος, που οδηγούν στην αντίστοιχη σελίδα προβλέψεων.
+    available: υποσύνολο του competitions.COMPETITIONS για τα οποία όντως
+    παράχθηκε σελίδα (π.χ. αν κάποιο απέτυχε να ενημερωθεί, δεν εμφανίζεται
+    σπασμένος σύνδεσμος)."""
+    generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    cards = "".join(f"""
+    <a class="card" href="{c['slug']}.html">
+      <img src="{c['emblem']}" alt="">
+      <div class="info">
+        <div class="league-name">{c['name']}</div>
+        <div class="country">{c['country']}</div>
+      </div>
+    </a>""" for c in available)
+
+    html = f"""<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predictor &mdash; Πρωταθλήματα</title>
+<style>{_HUB_CSS}</style>
+</head>
+<body>
+  <h1>&#9917; Predictor</h1>
+  <div class="subtitle">Διάλεξε πρωτάθλημα για προβλέψεις, βαθμολογία και προσομοίωση τελικής θέσης.</div>
+  <div class="generated">ενημερώθηκε {generated}</div>
+  <div class="grid">{cards}</div>
+  <footer>Δεδομένα: football-data.org &middot; Αποδόσεις αγοράς: The Odds API &middot;
+    Ίδιες παράμετροι μοντέλων (Poisson/Elo) σε όλα τα πρωταθλήματα, συντονισμένες
+    πάνω σε δεδομένα Premier League.</footer>
+</body>
+</html>"""
+
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = config.OUTPUT_DIR / "index.html"
     out_path.write_text(html, encoding="utf-8")
     return str(out_path)
 
@@ -480,14 +560,18 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
                    elo_team_accuracy: dict | None = None,
                    market_accuracy: dict | None = None,
                    market_team_accuracy: dict | None = None,
-                   out_filename: str = "index.html", note: str | None = None) -> str:
+                   out_filename: str = "index.html", note: str | None = None,
+                   competition: str = "PL") -> str:
     """Σελίδα με μία μόνο καρτέλα (χρησιμοποιείται από το backtest.py για
     γρήγορο, αυτόνομο έλεγχο μιας σεζόν)."""
-    section = build_section("season", f"Σεζόν {season}-{season + 1}", season, matchday,
+    label = f"Σεζόν {competitions.season_label(season, competition)}"
+    section = build_section("season", label, season, matchday,
                              fixtures, preds, table=table, accuracy=accuracy, sim=sim,
                              team_accuracy=team_accuracy, elo_accuracy=elo_accuracy,
                              elo_team_accuracy=elo_team_accuracy,
                              market_accuracy=market_accuracy,
-                             market_team_accuracy=market_team_accuracy, note=note, active=True)
-    return render_site([{"id": "season", "label": f"Σεζόν {season}-{season + 1}",
-                          "html": section}], out_filename=out_filename)
+                             market_team_accuracy=market_team_accuracy, note=note, active=True,
+                             competition=competition)
+    comp = competitions.BY_CODE.get(competition)
+    return render_site([{"id": "season", "label": label, "html": section}],
+                        comp, out_filename=out_filename)

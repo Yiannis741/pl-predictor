@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Αποθήκευση σε SQLite: ομάδες, αγώνες (τελειωμένοι + προγραμματισμένοι) και
-οι προβλέψεις που παράγουμε γι' αυτούς."""
+οι προβλέψεις που παράγουμε γι' αυτούς -- για ΟΛΑ τα πρωταθλήματα που
+καλύπτει το πρόγραμμα (μία κοινή βάση, ξεχωρίζουν με τη στήλη
+matches.competition)."""
 
 import sqlite3
 from contextlib import contextmanager
@@ -18,6 +20,7 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY,
+    competition TEXT NOT NULL DEFAULT 'PL',
     season INTEGER NOT NULL,
     matchday INTEGER,
     utc_date TEXT,
@@ -30,7 +33,9 @@ CREATE TABLE IF NOT EXISTS matches (
 );
 
 -- Μία γραμμή ΑΝΑ (αγώνας, μοντέλο) -- έτσι μπορούν να συνυπάρχουν οι
--- προβλέψεις Poisson και Elo για τον ίδιο αγώνα, για σύγκριση.
+-- προβλέψεις Poisson, Elo και Αγοράς για τον ίδιο αγώνα, για σύγκριση. Το
+-- match_id είναι global unique (football-data.org), οπότε δεν χρειάζεται
+-- competition εδώ -- ήδη ξεχωρίζει μέσω του matches.competition με JOIN.
 CREATE TABLE IF NOT EXISTS predictions (
     match_id INTEGER NOT NULL,
     model TEXT NOT NULL,
@@ -59,9 +64,20 @@ def connect():
         conn.close()
 
 
+def _migrate(conn) -> None:
+    """Παλιές βάσεις (πριν το multi-league) δεν έχουν τη στήλη
+    'competition' -- προσθέτουμε την με DEFAULT 'PL', ώστε όλα τα ήδη
+    αποθηκευμένα δεδομένα (που ήταν πάντα Premier League) να παραμείνουν
+    σωστά χωρίς να χρειαστεί rebuild."""
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(matches)").fetchall()]
+    if "competition" not in cols:
+        conn.execute("ALTER TABLE matches ADD COLUMN competition TEXT NOT NULL DEFAULT 'PL'")
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
 
 
 def _upsert_team(conn, team: dict | None) -> None:
@@ -78,123 +94,126 @@ def _upsert_team(conn, team: dict | None) -> None:
     )
 
 
-def _upsert_match(conn, match: dict, season: int) -> None:
+def _upsert_match(conn, match: dict, season: int, competition: str) -> None:
     home = match.get("homeTeam") or {}
     away = match.get("awayTeam") or {}
     _upsert_team(conn, home)
     _upsert_team(conn, away)
     score = (match.get("score") or {}).get("fullTime") or {}
     conn.execute(
-        """INSERT INTO matches (id, season, matchday, utc_date, status,
+        """INSERT INTO matches (id, competition, season, matchday, utc_date, status,
                home_team_id, away_team_id, home_score, away_score, winner)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
-             season=excluded.season, matchday=excluded.matchday,
-             utc_date=excluded.utc_date, status=excluded.status,
+             competition=excluded.competition, season=excluded.season,
+             matchday=excluded.matchday, utc_date=excluded.utc_date, status=excluded.status,
              home_team_id=excluded.home_team_id, away_team_id=excluded.away_team_id,
              home_score=excluded.home_score, away_score=excluded.away_score,
              winner=excluded.winner""",
-        (match["id"], season, match.get("matchday"), match.get("utcDate"),
+        (match["id"], competition, season, match.get("matchday"), match.get("utcDate"),
          match.get("status"), home.get("id"), away.get("id"),
          score.get("home"), score.get("away"),
          (match.get("score") or {}).get("winner")),
     )
 
 
-def save_matches(matches: list[dict], season: int) -> None:
+def save_matches(matches: list[dict], season: int, competition: str = "PL") -> None:
     with connect() as conn:
         for m in matches:
-            _upsert_match(conn, m, season)
+            _upsert_match(conn, m, season, competition)
 
 
-def finished_matches(season: int) -> list[dict]:
+def finished_matches(season: int, competition: str = "PL") -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT * FROM matches WHERE season=? AND status='FINISHED' "
+            "SELECT * FROM matches WHERE season=? AND competition=? AND status='FINISHED' "
             "AND home_score IS NOT NULL AND away_score IS NOT NULL",
-            (season,),
+            (season, competition),
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def next_matchday_fixtures(season: int) -> tuple[int | None, list[dict]]:
+def next_matchday_fixtures(season: int, competition: str = "PL") -> tuple[int | None, list[dict]]:
     """Η πρώτη αγωνιστική της σεζόν που έχει έστω έναν αγώνα που δεν έχει
     τελειώσει ακόμα (SCHEDULED/TIMED)."""
     with connect() as conn:
         row = conn.execute(
             "SELECT MIN(matchday) AS md FROM matches "
-            "WHERE season=? AND status IN ('SCHEDULED','TIMED')",
-            (season,),
+            "WHERE season=? AND competition=? AND status IN ('SCHEDULED','TIMED')",
+            (season, competition),
         ).fetchone()
         md = row["md"] if row else None
         if md is None:
             return None, []
         rows = conn.execute(
-            "SELECT * FROM matches WHERE season=? AND matchday=? ORDER BY utc_date",
-            (season, md),
+            "SELECT * FROM matches WHERE season=? AND competition=? AND matchday=? ORDER BY utc_date",
+            (season, competition, md),
         ).fetchall()
         return md, [dict(r) for r in rows]
 
 
-def distinct_matchdays(season: int) -> list[int]:
+def distinct_matchdays(season: int, competition: str = "PL") -> list[int]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT matchday FROM matches WHERE season=? "
-            "AND matchday IS NOT NULL ORDER BY matchday", (season,),
+            "SELECT DISTINCT matchday FROM matches WHERE season=? AND competition=? "
+            "AND matchday IS NOT NULL ORDER BY matchday", (season, competition),
         ).fetchall()
         return [r["matchday"] for r in rows]
 
 
-def matchday_matches(season: int, matchday: int) -> list[dict]:
+def matchday_matches(season: int, matchday: int, competition: str = "PL") -> list[dict]:
     """Οι αγώνες μιας συγκεκριμένης αγωνιστικής, ανεξαρτήτως status —
     χρησιμοποιείται στο backtest, όπου όλοι είναι ήδη FINISHED."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT * FROM matches WHERE season=? AND matchday=? ORDER BY utc_date",
-            (season, matchday),
+            "SELECT * FROM matches WHERE season=? AND competition=? AND matchday=? ORDER BY utc_date",
+            (season, competition, matchday),
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def finished_matches_before(seasons: list[int], cutoff_iso: str) -> list[dict]:
-    """Τελειωμένοι αγώνες από μία ή περισσότερες σεζόν, με ημερομηνία πριν
-    από το cutoff — για να χτίζουμε το μοντέλο σε ένα backtest χωρίς να
-    "βλέπουμε το μέλλον" (data leakage)."""
+def finished_matches_before(seasons: list[int], cutoff_iso: str, competition: str = "PL") -> list[dict]:
+    """Τελειωμένοι αγώνες από μία ή περισσότερες σεζόν ΤΟΥ ΙΔΙΟΥ
+    πρωταθλήματος, με ημερομηνία πριν από το cutoff — για να χτίζουμε το
+    μοντέλο σε ένα backtest χωρίς να "βλέπουμε το μέλλον" (data leakage)."""
     if not seasons:
         return []
     placeholders = ",".join("?" for _ in seasons)
     with connect() as conn:
         rows = conn.execute(
-            f"SELECT * FROM matches WHERE season IN ({placeholders}) "
+            f"SELECT * FROM matches WHERE season IN ({placeholders}) AND competition=? "
             f"AND status='FINISHED' AND home_score IS NOT NULL "
             f"AND away_score IS NOT NULL AND utc_date < ? ORDER BY utc_date",
-            (*seasons, cutoff_iso),
+            (*seasons, competition, cutoff_iso),
         ).fetchall()
         return [dict(r) for r in rows]
 
 
 def team_names() -> dict[int, dict]:
+    """Global -- τα team_id είναι μοναδικά σε όλο το football-data.org,
+    ανεξαρτήτως πρωταθλήματος."""
     with connect() as conn:
         rows = conn.execute("SELECT id, name, crest FROM teams").fetchall()
         return {r["id"]: dict(r) for r in rows}
 
 
-def season_matches(season: int) -> list[dict]:
+def season_matches(season: int, competition: str = "PL") -> list[dict]:
     """Όλοι οι αγώνες της σεζόν (τελειωμένοι + προγραμματισμένοι), για την
     προσομοίωση τελικής βαθμολογίας."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT * FROM matches WHERE season=? ORDER BY utc_date", (season,),
+            "SELECT * FROM matches WHERE season=? AND competition=? ORDER BY utc_date",
+            (season, competition),
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def standings_and_form(season: int, form_length: int = 5) -> list[dict]:
+def standings_and_form(season: int, competition: str = "PL", form_length: int = 5) -> list[dict]:
     """Πίνακας βαθμολογίας υπολογισμένος από τους τελειωμένους αγώνες της
     σεζόν (χωρίς να καλούμε ξανά το API), μαζί με τα τελευταία αποτελέσματα
     κάθε ομάδας (φόρμα). Ταξινόμηση: βαθμοί -> διαφορά τερμάτων -> γκολ υπέρ
     (χωρίς head-to-head, μικρή απλοποίηση σε σχέση με τον επίσημο κανονισμό)."""
-    matches = finished_matches(season)
+    matches = finished_matches(season, competition)
     names = team_names()
 
     table: dict[int, dict] = {}
@@ -257,28 +276,24 @@ def standings_and_form(season: int, form_length: int = 5) -> list[dict]:
     return result
 
 
-def accuracy_stats(season: int, model: str = "poisson") -> dict:
+def accuracy_stats(season: int, model: str = "poisson", competition: str = "PL") -> dict:
     """Πόσο συχνά η πρόβλεψή μας (πριν τον αγώνα) πέτυχε το σωστό
     αποτέλεσμα (1/Χ/2) ή το ακριβές σκορ, στους αγώνες της σεζόν που έχουν
-    ήδη τελειώσει, για το δοσμένο μοντέλο ("poisson" ή "elo").
+    ήδη τελειώσει, για το δοσμένο μοντέλο ("poisson"/"elo"/"market").
 
     ΣΗΜΑΝΤΙΚΟ: η "σωστή πρόβλεψη" 1/Χ/2 κρίνεται από ποια από τις τρεις
     αθροισμένες πιθανότητες (prob_home/prob_draw/prob_away) ήταν η
     μεγαλύτερη — ΟΧΙ από το αν το πιο πιθανό μεμονωμένο ΑΚΡΙΒΕΣ σκορ
-    συνέπιπτε τυχαία με το αποτέλεσμα. Σε ισόρροπους αγώνες το πιο πιθανό
-    μεμονωμένο σκορ είναι συχνά ισοπαλία (1-1) ακόμα κι όταν η ομάδα ήταν
-    συνολικά πιο πιθανό να κερδίσει (η πιθανότητα νίκης μοιράζεται σε πολλά
-    σκορ: 1-0, 2-0, 2-1, ...). Η παλιά μέθοδος υποτιμούσε συστηματικά τις
-    νίκες ευνοούμενων σε κοντινούς αγώνες."""
+    συνέπιπτε τυχαία με το αποτέλεσμα."""
     with connect() as conn:
         rows = conn.execute(
             """SELECT m.home_score, m.away_score,
                       p.predicted_home_score, p.predicted_away_score,
                       p.prob_home, p.prob_draw, p.prob_away
                FROM matches m JOIN predictions p ON p.match_id = m.id
-               WHERE m.season=? AND p.model=? AND m.status='FINISHED'
+               WHERE m.season=? AND m.competition=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
-            (season, model),
+            (season, competition, model),
         ).fetchall()
 
     total = len(rows)
@@ -310,13 +325,13 @@ def accuracy_stats(season: int, model: str = "poisson") -> dict:
         "correct_result": correct_result,
         "exact_score": exact_score,
         "result_pct": (correct_result / total * 100) if total else None,
-        # Το Elo δεν προβλέπει ακριβές σκορ (predicted_home_score=NULL) --
-        # None σημαίνει "δεν εφαρμόζεται", διαφορετικό από 0%.
+        # Το Elo/η Αγορά δεν προβλέπουν ακριβές σκορ (predicted_home_score=NULL)
+        # -- None σημαίνει "δεν εφαρμόζεται", διαφορετικό από 0%.
         "exact_pct": (exact_score / exact_eligible * 100) if exact_eligible else None,
     }
 
 
-def team_accuracy(season: int, model: str = "poisson") -> dict[int, dict]:
+def team_accuracy(season: int, model: str = "poisson", competition: str = "PL") -> dict[int, dict]:
     """Ποσοστό επιτυχίας του μοντέλου (σωστό 1/Χ/2) στους αγώνες κάθε
     ομάδας -- πιστώνεται και στις δύο ομάδες ενός αγώνα το ίδιο
     σωστό/λάθος, αφού η πρόβλεψη αφορά τον αγώνα συνολικά."""
@@ -325,9 +340,9 @@ def team_accuracy(season: int, model: str = "poisson") -> dict[int, dict]:
             """SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score,
                       p.prob_home, p.prob_draw, p.prob_away
                FROM matches m JOIN predictions p ON p.match_id = m.id
-               WHERE m.season=? AND p.model=? AND m.status='FINISHED'
+               WHERE m.season=? AND m.competition=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
-            (season, model),
+            (season, competition, model),
         ).fetchall()
 
     stats: dict[int, list[int]] = {}  # team_id -> [σωστές, σύνολο]
@@ -352,7 +367,7 @@ def team_accuracy(season: int, model: str = "poisson") -> dict[int, dict]:
             for tid, (c, t) in stats.items()}
 
 
-def predictions_for_season(season: int, model: str = "poisson") -> dict[int, dict]:
+def predictions_for_season(season: int, model: str = "poisson", competition: str = "PL") -> dict[int, dict]:
     """Όλες οι αποθηκευμένες προβλέψεις της σεζόν για ΕΝΑ μοντέλο, keyed by
     match_id -- για την αναλυτική σελίδα αποτελεσμάτων (όχι μόνο η επόμενη
     αγωνιστική)."""
@@ -360,16 +375,16 @@ def predictions_for_season(season: int, model: str = "poisson") -> dict[int, dic
         rows = conn.execute(
             """SELECT p.* FROM predictions p
                JOIN matches m ON m.id = p.match_id
-               WHERE m.season=? AND p.model=?""",
-            (season, model),
+               WHERE m.season=? AND m.competition=? AND p.model=?""",
+            (season, competition, model),
         ).fetchall()
         return {r["match_id"]: dict(r) for r in rows}
 
 
 def save_predictions(preds: list[dict]) -> None:
     """Κάθε dict στο preds πρέπει να έχει "match_id" και "model"
-    ("poisson"/"elo"). Το predicted_home_score/away_score είναι
-    προαιρετικά (το Elo δεν προβλέπει σκορ, μόνο 1/Χ/2)."""
+    ("poisson"/"elo"/"market"). Το predicted_home_score/away_score είναι
+    προαιρετικά (μόνο το Poisson προβλέπει σκορ)."""
     with connect() as conn:
         for p in preds:
             conn.execute(

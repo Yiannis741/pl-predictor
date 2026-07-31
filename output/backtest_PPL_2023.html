@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Primeira Liga &mdash; Προβλέψεις</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#0d1b2a;
+          color:#e0e6ed; margin:0; padding:2rem; }
+  h1 { color:#fff; margin-bottom:0.2rem; display:flex; align-items:center; gap:0.6rem; }
+  .league-logo { height:2rem; width:2rem; object-fit:contain; }
+  .back-link { display:inline-block; color:#9db4c0; text-decoration:none; font-size:0.85rem;
+               margin-bottom:0.8rem; }
+  .back-link:hover { color:#fff; }
+  h3 { color:#fff; font-size:1.05rem; margin:2rem 0 0.7rem; }
+  .meta { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
+  .accuracy { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
+  .accuracy b { color:#4ade80; }
+  .generated { color:#5c7182; font-size:0.8rem; margin-bottom:1.2rem; }
+  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem;
+        border-bottom:1px solid #1c3a52; padding-bottom:1rem; }
+  nav button { background:#132a3e; color:#9db4c0; border:1px solid #1c3a52;
+               border-radius:6px; padding:0.5rem 1rem; font-size:0.9rem;
+               cursor:pointer; font-family:inherit; }
+  nav button:hover { background:#1c3a52; color:#fff; }
+  nav button.active { background:#4ade80; color:#0d1b2a; font-weight:700; border-color:#4ade80; }
+  table { width:100%; border-collapse:collapse; background:#132a3e; border-radius:8px;
+          overflow:hidden; font-size:0.9rem; }
+  th, td { padding:0.55rem 0.7rem; text-align:center; }
+  th { background:#1c3a52; color:#9db4c0; font-weight:600; text-transform:uppercase;
+       font-size:0.72rem; letter-spacing:0.03em; }
+  tr:nth-child(even) { background:#0f2436; }
+  .team { font-weight:600; color:#fff; text-align:left; }
+  .pick { font-weight:700; color:#facc15; }
+  .pick-elo { color:#60a5fa; }
+  .pick-market { color:#c084fc; }
+  .score { font-weight:700; color:#4ade80; }
+  .xg { color:#7fa3b8; font-size:0.85rem; }
+  .probs { color:#9db4c0; font-size:0.85rem; }
+  .points { font-weight:700; color:#fff; }
+  .zone-top4 { box-shadow: inset 3px 0 0 #4ade80; }
+  .zone-releg { box-shadow: inset 3px 0 0 #f87171; }
+  .badge { display:inline-block; width:1.3rem; height:1.3rem; line-height:1.3rem;
+           border-radius:3px; font-size:0.7rem; font-weight:700; margin:0 1px; }
+  .badge-W { background:#16653488; color:#4ade80; }
+  .badge-D { background:#374151; color:#cbd5e1; }
+  .badge-L { background:#7f1d1d88; color:#f87171; }
+  .note { background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
+          margin-bottom:1rem; font-size:0.85rem; }
+  .acc-n { color:#5c7182; font-size:0.78rem; }
+  details { background:#132a3e; border-radius:8px; margin-bottom:0.6rem; overflow:hidden; }
+  summary { padding:0.6rem 1rem; cursor:pointer; color:#e0e6ed; font-weight:600;
+            font-size:0.88rem; list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  summary::before { content:'\25B8'; display:inline-block; margin-right:0.5rem;
+                     transition:transform 0.15s; color:#4ade80; }
+  details[open] summary::before { transform:rotate(90deg); }
+  details table { border-radius:0; font-size:0.85rem; }
+  details th { font-size:0.68rem; }
+  .mark { font-weight:700; }
+  .mark-ok { color:#4ade80; }
+  .mark-bad { color:#f87171; }
+  .mark-none { color:#5c7182; }
+  footer { margin-top:2rem; color:#5c7182; font-size:0.8rem; }
+</style>
+</head>
+<body>
+  <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
+  <h1><img src="https://crests.football-data.org/PPL.png" alt="" class="league-logo">Primeira Liga &mdash; Προβλέψεις</h1>
+  <div class="generated">ενημερώθηκε 31/07/2026 17:05</div>
+  <nav><button data-target="season" class="active" onclick="showTab('season')">Σεζόν 2023-2024</button></nav>
+  
+<section id="season" class="tab-panel" style="display:block">
+  <div class="meta">Σεζόν 2023-2024</div>
+  <div class="note">Backtest: αναπαραγωγή της σεζόν 2023-2024 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση (γι' αυτό μπορεί να δείχνουν υπερβολικά σίγουρες τιμές όπως 100% — έχουν μόνο ένα έτος δεδομένων να στηριχτούν) — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
+  <div class="accuracy">Poisson (σε 297 αγώνες): <b>50%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>12%</b> ακριβές σκορ<br>Elo (σε 297 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2</div>
+  
+
+  <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
+          <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
+          <th>Ακρίβεια Poisson</th><th>Ακρίβεια Elo</th>
+          <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
+    </thead>
+    <tbody>
+      
+        <tr class="zone-top4">
+          <td>1</td>
+          <td class="team">Sporting Clube de Portugal</td>
+          <td>34</td>
+          <td>29</td>
+          <td>3</td>
+          <td>2</td>
+          <td>96</td>
+          <td>29</td>
+          <td>+67</td>
+          <td class="points">90</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>79% <span class="acc-n">(33)</span></td>
+          <td>82% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>2</td>
+          <td class="team">Sport Lisboa e Benfica</td>
+          <td>34</td>
+          <td>25</td>
+          <td>5</td>
+          <td>4</td>
+          <td>77</td>
+          <td>28</td>
+          <td>+49</td>
+          <td class="points">80</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>67% <span class="acc-n">(33)</span></td>
+          <td>67% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>3</td>
+          <td class="team">FC Porto</td>
+          <td>34</td>
+          <td>22</td>
+          <td>6</td>
+          <td>6</td>
+          <td>63</td>
+          <td>27</td>
+          <td>+36</td>
+          <td class="points">72</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>52% <span class="acc-n">(33)</span></td>
+          <td>58% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-top4">
+          <td>4</td>
+          <td class="team">Sporting Clube de Braga</td>
+          <td>34</td>
+          <td>21</td>
+          <td>5</td>
+          <td>8</td>
+          <td>71</td>
+          <td>50</td>
+          <td>+21</td>
+          <td class="points">68</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
+          <td>64% <span class="acc-n">(33)</span></td>
+          <td>64% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>5</td>
+          <td class="team">Vitória SC</td>
+          <td>34</td>
+          <td>19</td>
+          <td>6</td>
+          <td>9</td>
+          <td>52</td>
+          <td>38</td>
+          <td>+14</td>
+          <td class="points">63</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>55% <span class="acc-n">(33)</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>6</td>
+          <td class="team">Moreirense FC</td>
+          <td>34</td>
+          <td>16</td>
+          <td>7</td>
+          <td>11</td>
+          <td>36</td>
+          <td>35</td>
+          <td>+1</td>
+          <td class="points">55</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>45% <span class="acc-n">(33)</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>7</td>
+          <td class="team">FC Arouca</td>
+          <td>34</td>
+          <td>13</td>
+          <td>7</td>
+          <td>14</td>
+          <td>54</td>
+          <td>50</td>
+          <td>+4</td>
+          <td class="points">46</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span></td>
+          <td>45% <span class="acc-n">(33)</span></td>
+          <td>45% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>8</td>
+          <td class="team">FC Famalicão</td>
+          <td>34</td>
+          <td>10</td>
+          <td>12</td>
+          <td>12</td>
+          <td>37</td>
+          <td>41</td>
+          <td>-4</td>
+          <td class="points">42</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>45% <span class="acc-n">(33)</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>9</td>
+          <td class="team">Casa Pia AC</td>
+          <td>34</td>
+          <td>10</td>
+          <td>8</td>
+          <td>16</td>
+          <td>38</td>
+          <td>50</td>
+          <td>-12</td>
+          <td class="points">38</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>42% <span class="acc-n">(33)</span></td>
+          <td>36% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>10</td>
+          <td class="team">SC Farense</td>
+          <td>34</td>
+          <td>10</td>
+          <td>7</td>
+          <td>17</td>
+          <td>46</td>
+          <td>51</td>
+          <td>-5</td>
+          <td class="points">37</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>61% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>11</td>
+          <td class="team">Rio Ave FC</td>
+          <td>34</td>
+          <td>6</td>
+          <td>19</td>
+          <td>9</td>
+          <td>38</td>
+          <td>43</td>
+          <td>-5</td>
+          <td class="points">37</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span></td>
+          <td>30% <span class="acc-n">(33)</span></td>
+          <td>27% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>12</td>
+          <td class="team">Gil Vicente FC</td>
+          <td>34</td>
+          <td>9</td>
+          <td>9</td>
+          <td>16</td>
+          <td>42</td>
+          <td>52</td>
+          <td>-10</td>
+          <td class="points">36</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>55% <span class="acc-n">(33)</span></td>
+          <td>52% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>13</td>
+          <td class="team">GD Estoril Praia</td>
+          <td>34</td>
+          <td>9</td>
+          <td>6</td>
+          <td>19</td>
+          <td>49</td>
+          <td>58</td>
+          <td>-9</td>
+          <td class="points">33</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span></td>
+          <td>55% <span class="acc-n">(33)</span></td>
+          <td>64% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>14</td>
+          <td class="team">CF Estrela da Amadora</td>
+          <td>34</td>
+          <td>7</td>
+          <td>12</td>
+          <td>15</td>
+          <td>33</td>
+          <td>53</td>
+          <td>-20</td>
+          <td class="points">33</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>42% <span class="acc-n">(33)</span></td>
+          <td>45% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="">
+          <td>15</td>
+          <td class="team">Boavista FC</td>
+          <td>34</td>
+          <td>7</td>
+          <td>11</td>
+          <td>16</td>
+          <td>39</td>
+          <td>62</td>
+          <td>-23</td>
+          <td class="points">32</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>36% <span class="acc-n">(33)</span></td>
+          <td>39% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>16</td>
+          <td class="team">Portimonense SC</td>
+          <td>34</td>
+          <td>8</td>
+          <td>8</td>
+          <td>18</td>
+          <td>39</td>
+          <td>72</td>
+          <td>-33</td>
+          <td class="points">32</td>
+          <td><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>48% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>17</td>
+          <td class="team">FC Vizela</td>
+          <td>34</td>
+          <td>5</td>
+          <td>11</td>
+          <td>18</td>
+          <td>36</td>
+          <td>66</td>
+          <td>-30</td>
+          <td class="points">26</td>
+          <td><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>39% <span class="acc-n">(33)</span></td>
+          <td>42% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+        <tr class="zone-releg">
+          <td>18</td>
+          <td class="team">GD Chaves</td>
+          <td>34</td>
+          <td>5</td>
+          <td>8</td>
+          <td>21</td>
+          <td>31</td>
+          <td>72</td>
+          <td>-41</td>
+          <td class="points">23</td>
+          <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>55% <span class="acc-n">(33)</span></td>
+          <td>58% <span class="acc-n">(33)</span></td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+        </tr>
+    </tbody>
+  </table>
+</section>
+  <footer>Δεδομένα: football-data.org &middot; Μοντέλα πρόβλεψης:
+    <span style="color:#facc15">Poisson</span> (μέσοι όροι γκολ με στάθμιση
+    πρόσφατης φόρμας + διόρθωση Dixon-Coles),
+    <span style="color:#60a5fa">Elo</span> (rating που ενημερώνεται
+    αγώνα-αγώνα, πιο ευαίσθητο σε ξαφνικές αλλαγές φόρμας) και
+    <span style="color:#c084fc">Αγορά</span> (implied probabilities από
+    πραγματικές αποδόσεις στοιχήματος, The Odds API -- μόνο ζωντανές, χωρίς
+    ιστορικό, οπότε εμφανίζεται μόνο στην τρέχουσα σεζόν από εδώ και πέρα)
+    &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
+    Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
+    μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
+    δεδομένα Premier League).</footer>
+  <script>
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(function (el) {
+    el.style.display = (el.id === id) ? 'block' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.target === id);
+  });
+}
+</script>
+</body>
+</html>
