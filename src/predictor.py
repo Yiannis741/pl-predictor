@@ -38,6 +38,26 @@ HALF_LIFE_DAYS = 365.0  # βλ. tune_model.py
 # από ~9.3% σε ~11.4% χωρίς να χειροτερέψει το % σωστού αποτελέσματος.
 DC_RHO = -0.10
 
+# Πόσο "τραβιέται" η εκτίμηση μιας ομάδας προς τον μέσο όρο της λίγκας όταν
+# έχει λίγα δεδομένα (empirical-Bayes shrinkage). Το βάρος στα δικά της
+# στατιστικά είναι n/(n+SHRINKAGE_MATCHES), όπου n το σταθμισμένο πλήθος
+# αγώνων της -- δηλαδή SHRINKAGE_MATCHES ισοδυναμεί περίπου με "τόσους
+# φανταστικούς αγώνες στον μέσο όρο" πριν εμπιστευτούμε πλήρως τη δική της
+# φόρμα. Grid-search (tune_model.py, 760 αγώνες): shrink=3 κράτησε το ίδιο
+# % σωστού αποτελέσματος (50.3%) ΚΑΙ βελτίωσε το % ακριβούς σκορ (11.4%->
+# 12.1%). Μεγαλύτερες τιμές (8+) άρχισαν να χειροτερεύουν το % σωστού
+# αποτελέσματος -- σημάδι υπερβολικής εξομάλυνσης.
+SHRINKAGE_MATCHES = 3.0
+
+# Ομάδα χωρίς ΚΑΘΟΛΟΥ ιστορικό στο παράθυρο δεδομένων μας (τυπικά μόλις
+# ανέβηκε από Championship) -- υποθέτουμε ότι είναι πιο αδύναμη από τον μέσο
+# όρο Premier League, όχι ουδέτερη. Grid-search: η διαφορά ανάμεσα σε
+# διάφορες τιμές ποινής ήταν μέσα στο στατιστικό θόρυβο (n=760, ±1.8%), οπότε
+# κρατήσαμε μια μέτρια, ρεαλιστική τιμή αντί για την ελαφρώς "καλύτερη" στο
+# δείγμα (που πιθανώς είναι θόρυβος, όχι πραγματικό σήμα).
+PROMOTED_ATTACK = 0.95
+PROMOTED_DEFENSE = 1.05
+
 
 def _poisson_pmf(k: int, lam: float) -> float:
     return math.exp(-lam) * (lam ** k) / math.factorial(k)
@@ -105,7 +125,14 @@ def compute_strengths(matches: list[dict]) -> dict | None:
     avg_away = league_away[0] / league_away[1]
 
     def wavg(acc, fallback):
-        return (acc[0] / acc[1]) if acc[1] > 0 else fallback
+        n = acc[1]
+        if n <= 0:
+            return fallback
+        raw = acc[0] / n
+        if SHRINKAGE_MATCHES <= 0:
+            return raw
+        w = n / (n + SHRINKAGE_MATCHES)
+        return w * raw + (1 - w) * fallback
 
     teams = set(home_for) | set(away_for)
     strengths = {}
@@ -124,9 +151,13 @@ def compute_strengths(matches: list[dict]) -> dict | None:
     return {"avg_home_goals": avg_home, "avg_away_goals": avg_away, "teams": strengths}
 
 
-def _neutral_strength() -> dict:
-    # Ομάδα χωρίς ιστορικό (π.χ. μόλις ανέβηκε) -> ουδέτερη (μέση) δύναμη.
-    return {"home_attack": 1.0, "home_defense": 1.0, "away_attack": 1.0, "away_defense": 1.0}
+def _fallback_strength() -> dict:
+    # Ομάδα χωρίς ΚΑΘΟΛΟΥ ιστορικό στο παράθυρο δεδομένων μας -- τυπικά
+    # νεοφώτιστη. Βλ. PROMOTED_ATTACK/PROMOTED_DEFENSE παραπάνω.
+    return {
+        "home_attack": PROMOTED_ATTACK, "home_defense": PROMOTED_DEFENSE,
+        "away_attack": PROMOTED_ATTACK, "away_defense": PROMOTED_DEFENSE,
+    }
 
 
 def expected_goals(model: dict, home_id: int, away_id: int) -> tuple[float, float]:
@@ -135,8 +166,8 @@ def expected_goals(model: dict, home_id: int, away_id: int) -> tuple[float, floa
     προσομοίωση σεζόν (simulate.py) που χρειάζεται μόνο τα λ για χιλιάδες
     δείγματα."""
     teams = model["teams"]
-    home_s = teams.get(home_id, _neutral_strength())
-    away_s = teams.get(away_id, _neutral_strength())
+    home_s = teams.get(home_id, _fallback_strength())
+    away_s = teams.get(away_id, _fallback_strength())
 
     lam_home = home_s["home_attack"] * away_s["away_defense"] * model["avg_home_goals"]
     lam_away = away_s["away_attack"] * home_s["home_defense"] * model["avg_away_goals"]

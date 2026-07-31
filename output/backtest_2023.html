@@ -42,18 +42,32 @@
   .badge-L { background:#7f1d1d88; color:#f87171; }
   .note { background:#3730a3; color:#e0e7ff; padding:0.7rem 1rem; border-radius:6px;
           margin-bottom:1rem; font-size:0.85rem; }
+  .acc-n { color:#5c7182; font-size:0.78rem; }
+  details { background:#132a3e; border-radius:8px; margin-bottom:0.6rem; overflow:hidden; }
+  summary { padding:0.6rem 1rem; cursor:pointer; color:#e0e6ed; font-weight:600;
+            font-size:0.88rem; list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  summary::before { content:'\25B8'; display:inline-block; margin-right:0.5rem;
+                     transition:transform 0.15s; color:#4ade80; }
+  details[open] summary::before { transform:rotate(90deg); }
+  details table { border-radius:0; font-size:0.85rem; }
+  details th { font-size:0.68rem; }
+  .mark { font-weight:700; }
+  .mark-ok { color:#4ade80; }
+  .mark-bad { color:#f87171; }
+  .mark-none { color:#5c7182; }
   footer { margin-top:2rem; color:#5c7182; font-size:0.8rem; }
 </style>
 </head>
 <body>
   <h1>Premier League &mdash; Προβλέψεις</h1>
-  <div class="generated">ενημερώθηκε 31/07/2026 10:46</div>
+  <div class="generated">ενημερώθηκε 31/07/2026 11:20</div>
   <nav><button data-target="season" class="active" onclick="showTab('season')">Σεζόν 2023-2024</button></nav>
   
 <section id="season" class="tab-panel" style="display:block">
   <div class="meta">Σεζόν 2023-2024</div>
   <div class="note">Backtest: αναπαραγωγή της σεζόν 2023-2024 αγωνιστική προς αγωνιστική. Κάθε πρόβλεψη έγινε χρησιμοποιώντας μόνο ό,τι ήταν ήδη γνωστό πριν από εκείνη την αγωνιστική — καμία διαρροή από το μέλλον. Οι στήλες Τίτλος/Top-4/Υποβ. δείχνουν τι θα προέβλεπε το μοντέλο ΠΡΙΝ την 1η αγωνιστική, με μόνο την προηγούμενη σεζόν σαν βάση (γι' αυτό μπορεί να δείχνουν υπερβολικά σίγουρες τιμές όπως 100% — έχουν μόνο ένα έτος δεδομένων να στηριχτούν) — σύγκρινέ τες με το πραγματικό τελικό αποτέλεσμα στα αριστερά.</div>
-  <div class="accuracy">Ακρίβεια μοντέλου (σε 370 αγώνες): <b>51%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>9%</b> ακριβές σκορ</div>
+  <div class="accuracy">Ακρίβεια μοντέλου (σε 370 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>10%</b> ακριβές σκορ</div>
   
 
   <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
@@ -61,6 +75,7 @@
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
+          <th>Ακρίβεια μοντέλου</th>
           <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
     </thead>
     <tbody>
@@ -80,6 +95,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="zone-top4">
           <td>2</td>
@@ -93,6 +109,7 @@
           <td>+62</td>
           <td class="points">89</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -112,6 +129,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="zone-top4">
           <td>4</td>
@@ -125,6 +143,7 @@
           <td>+15</td>
           <td class="points">68</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -144,6 +163,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>6</td>
@@ -157,6 +177,7 @@
           <td>+14</td>
           <td class="points">63</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -176,6 +197,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>8</td>
@@ -189,6 +211,7 @@
           <td>-1</td>
           <td class="points">60</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -208,6 +231,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>10</td>
@@ -221,6 +245,7 @@
           <td>-1</td>
           <td class="points">49</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -240,6 +265,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>12</td>
@@ -253,6 +279,7 @@
           <td>-11</td>
           <td class="points">48</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-W">Ν</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -272,6 +299,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>14</td>
@@ -285,6 +313,7 @@
           <td>-6</td>
           <td class="points">47</td>
           <td><span class="badge badge-W">Ν</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -304,6 +333,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="">
           <td>16</td>
@@ -317,6 +347,7 @@
           <td>-9</td>
           <td class="points">39</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-W">Ν</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -336,6 +367,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="zone-releg">
           <td>18</td>
@@ -349,6 +381,7 @@
           <td>-33</td>
           <td class="points">26</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-D">Ι</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -368,6 +401,7 @@
           <td>-</td>
           <td>-</td>
           <td>-</td>
+          <td>-</td>
         </tr>
         <tr class="zone-releg">
           <td>20</td>
@@ -381,6 +415,7 @@
           <td>-69</td>
           <td class="points">16</td>
           <td><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span><span class="badge badge-L">Η</span></td>
+          <td>-</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
