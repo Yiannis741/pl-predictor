@@ -29,16 +29,20 @@ def _fmt_date(iso_str: str | None) -> str:
 
 
 def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
-                     elo_preds_by_match: dict, teams: dict) -> str | None:
+                     elo_preds_by_match: dict, teams: dict,
+                     market_preds_by_match: dict | None = None) -> str | None:
     if not fixtures:
         return None
     elo_preds_by_match = elo_preds_by_match or {}
+    market_preds_by_match = market_preds_by_match or {}
+    show_market = bool(market_preds_by_match)
     rows_html = []
     for m in fixtures:
         home = teams.get(m["home_team_id"], {}).get("name", "?")
         away = teams.get(m["away_team_id"], {}).get("name", "?")
         p = preds_by_match.get(m["id"])
         ep = elo_preds_by_match.get(m["id"])
+        mp = market_preds_by_match.get(m["id"])
         date = _fmt_date(m.get("utc_date"))
         if p:
             pick_letter = OUTCOME_LABELS.get(p.get("predicted_outcome"), "?")
@@ -56,6 +60,15 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
             elo_pick = f'{elo_letter} ({_fmt_pct(elo_conf * 100)})'
         else:
             elo_pick = "-"
+        market_cell = ""
+        if show_market:
+            if mp:
+                m_letter = OUTCOME_LABELS.get(mp.get("predicted_outcome"), "?")
+                m_conf = max(mp["prob_home"], mp["prob_draw"], mp["prob_away"])
+                market_pick = f'{m_letter} ({_fmt_pct(m_conf * 100)})'
+            else:
+                market_pick = "-"
+            market_cell = f'<td class="pick pick-market">{market_pick}</td>'
         rows_html.append(f"""
         <tr>
           <td>{date}</td>
@@ -66,6 +79,7 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
           <td class="xg">{xg}</td>
           <td class="probs">{probs}</td>
           <td class="pick pick-elo">{elo_pick}</td>
+          {market_cell}
         </tr>""")
     return "".join(rows_html)
 
@@ -79,21 +93,26 @@ def _one_model_accuracy_html(label: str, accuracy: dict | None) -> str:
             f'<b>{_fmt_pct(accuracy["result_pct"])}</b> σωστή πρόβλεψη 1/Χ/2{exact}')
 
 
-def _accuracy_html(accuracy: dict | None, elo_accuracy: dict | None = None) -> str:
+def _accuracy_html(accuracy: dict | None, elo_accuracy: dict | None = None,
+                    market_accuracy: dict | None = None) -> str:
     lines = [_one_model_accuracy_html("Poisson", accuracy)]
     if elo_accuracy is not None:
         lines.append(_one_model_accuracy_html("Elo", elo_accuracy))
+    if market_accuracy is not None:
+        lines.append(_one_model_accuracy_html("Αγορά (αποδόσεις)", market_accuracy))
     return '<div class="accuracy">' + '<br>'.join(lines) + '</div>'
 
 
 def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
-                      elo_team_acc: dict | None = None) -> str:
-    n_cols = 15 if elo_team_acc is not None else 14
+                      elo_team_acc: dict | None = None,
+                      market_team_acc: dict | None = None) -> str:
+    n_cols = 14 + (1 if elo_team_acc is not None else 0) + (1 if market_team_acc is not None else 0)
     if not table:
         return (f'<tr><td colspan="{n_cols}">Δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος '
                 'για βαθμολογία.</td></tr>')
     team_acc = team_acc or {}
     elo_team_acc = elo_team_acc or {}
+    market_team_acc = market_team_acc or {}
     rows = []
     for r in table:
         form_badges = "".join(
@@ -110,6 +129,12 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
             eacc_html = (f'{_fmt_pct(eacc.get("pct"))} <span class="acc-n">({eacc["total"]})</span>'
                          if eacc.get("total") else "-")
             elo_acc_cell = f'<td>{eacc_html}</td>'
+        market_acc_cell = ""
+        if market_team_acc is not None:
+            macc = market_team_acc.get(r["team_id"], {})
+            macc_html = (f'{_fmt_pct(macc.get("pct"))} <span class="acc-n">({macc["total"]})</span>'
+                         if macc.get("total") else "-")
+            market_acc_cell = f'<td>{macc_html}</td>'
         row_class = ""
         if r["position"] <= 4:
             row_class = "zone-top4"
@@ -130,6 +155,7 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
           <td>{form_badges}</td>
           <td>{acc_html}</td>
           {elo_acc_cell}
+          {market_acc_cell}
           <td>{_fmt_pct(s.get("title_pct"))}</td>
           <td>{_fmt_pct(s.get("top4_pct"))}</td>
           <td>{_fmt_pct(s.get("relegation_pct"))}</td>
@@ -142,33 +168,45 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
                    accuracy: dict | None = None, sim: dict | None = None,
                    team_accuracy: dict | None = None, elo_accuracy: dict | None = None,
                    elo_team_accuracy: dict | None = None,
+                   market_accuracy: dict | None = None,
+                   market_team_accuracy: dict | None = None,
                    note: str | None = None, active: bool = False) -> str:
     """Χτίζει το περιεχόμενο ΜΙΑΣ καρτέλας (μία σεζόν). Καλείται μία φορά ανά
     σεζόν (τρέχουσα + ιστορικές) και οι καρτέλες συνδυάζονται στο
     render_site() παρακάτω. Το preds μπορεί να περιέχει προβλέψεις και από
-    τα δύο μοντέλα (poisson/elo) -- ξεχωρίζουν εδώ με βάση το "model"."""
+    τα τρία μοντέλα (poisson/elo/market) -- ξεχωρίζουν εδώ με βάση το
+    "model". Το "market" (αποδόσεις στοιχήματος) υπάρχει μόνο όσο δίνεται
+    ρητά market_accuracy/market_team_accuracy -- π.χ. δεν υπάρχει ιστορικό
+    γι' αυτό στις παλιές σεζόν."""
     teams = db.team_names()
     preds_by_match = {p["match_id"]: p for p in preds if p.get("model", "poisson") == "poisson"}
     elo_preds_by_match = {p["match_id"]: p for p in preds if p.get("model") == "elo"}
+    market_preds_by_match = {p["match_id"]: p for p in preds if p.get("model") == "market"}
     table = table or []
     sim = sim or {}
     show_elo = elo_accuracy is not None or elo_team_accuracy is not None or elo_preds_by_match
+    show_market = (market_accuracy is not None or market_team_accuracy is not None
+                   or market_preds_by_match)
 
     md_label = f"Αγωνιστική {matchday}" if matchday else "Τέλος σεζόν"
-    fixtures_rows = _fixtures_table(fixtures, preds_by_match, elo_preds_by_match, teams)
-    accuracy_html = _accuracy_html(accuracy, elo_accuracy if show_elo else None)
+    fixtures_rows = _fixtures_table(fixtures, preds_by_match, elo_preds_by_match, teams,
+                                     market_preds_by_match if show_market else None)
+    accuracy_html = _accuracy_html(accuracy, elo_accuracy if show_elo else None,
+                                    market_accuracy if show_market else None)
     standings_rows = _standings_table(table, sim, team_accuracy,
-                                       elo_team_accuracy if show_elo else None)
+                                       elo_team_accuracy if show_elo else None,
+                                       market_team_accuracy if show_market else None)
     note_html = f'<div class="note">{note}</div>' if note else ""
 
     elo_th = '<th>Πρόβλεψη Elo</th>' if show_elo else ""
+    market_th = '<th>Πρόβλεψη Αγοράς</th>' if show_market else ""
     fixtures_block = "" if fixtures_rows is None else f"""
   <h3>{md_label}</h3>
   <table>
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
           <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
-          <th>1 / Χ / 2</th>{elo_th}</tr>
+          <th>1 / Χ / 2</th>{elo_th}{market_th}</tr>
     </thead>
     <tbody>
       {fixtures_rows}
@@ -176,6 +214,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
   </table>"""
 
     elo_acc_th = '<th>Ακρίβεια Elo</th>' if show_elo else ""
+    market_acc_th = '<th>Ακρίβεια Αγοράς</th>' if show_market else ""
     display = "block" if active else "none"
     return f"""
 <section id="{section_id}" class="tab-panel" style="display:{display}">
@@ -189,7 +228,7 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
     <thead>
       <tr><th>#</th><th>Ομάδα</th><th>Αγ</th><th>Ν</th><th>Ι</th><th>Η</th>
           <th>ΓΦ</th><th>ΓΚ</th><th>Δ</th><th>Β</th><th>Φόρμα</th>
-          <th>Ακρίβεια Poisson</th>{elo_acc_th}
+          <th>Ακρίβεια Poisson</th>{elo_acc_th}{market_acc_th}
           <th>Τίτλος</th><th>Top-4</th><th>Υποβ.</th></tr>
     </thead>
     <tbody>
@@ -220,15 +259,18 @@ def _pred_pick(p: dict | None) -> tuple[str, str | None]:
 
 def build_detail_section(section_id: str, label: str, season: int, matches: list[dict],
                           preds_by_match: dict, elo_preds_by_match: dict | None = None,
+                          market_preds_by_match: dict | None = None,
                           active: bool = False) -> str:
     """Αναλυτική καρτέλα: όλοι οι αγώνες της σεζόν, ομαδοποιημένοι ανά
     αγωνιστική μέσα σε &lt;details&gt; (κλειστά εξ ορισμού) ώστε η σελίδα να
     ανοίγει συμπαγής -- 380 αγώνες σε μία επίπεδη λίστα θα ήταν αδιάβαστοι.
-    Δείχνει τις προβλέψεις ΚΑΙ των δύο μοντέλων δίπλα-δίπλα, αν δοθεί
-    elo_preds_by_match."""
+    Δείχνει τις προβλέψεις ΚΑΙ των τριών μοντέλων δίπλα-δίπλα, αν δοθούν
+    elo_preds_by_match / market_preds_by_match."""
     teams = db.team_names()
     elo_preds_by_match = elo_preds_by_match or {}
+    market_preds_by_match = market_preds_by_match or {}
     show_elo = bool(elo_preds_by_match)
+    show_market = bool(market_preds_by_match)
 
     by_matchday: dict[int, list[dict]] = {}
     for m in matches:
@@ -245,14 +287,17 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
             date = _fmt_date(m.get("utc_date"))
             p = preds_by_match.get(m["id"])
             ep = elo_preds_by_match.get(m["id"])
+            mp = market_preds_by_match.get(m["id"])
             played = m.get("home_score") is not None and m.get("away_score") is not None
 
             actual = f'{m["home_score"]}-{m["away_score"]}' if played else "-"
             pick, pred_outcome = _pred_pick(p)
             elo_pick, elo_outcome = _pred_pick(ep)
+            market_pick, market_outcome = _pred_pick(mp)
 
             mark = '<span class="mark mark-none">-</span>'
             elo_mark = '<span class="mark mark-none">-</span>'
+            market_mark = '<span class="mark mark-none">-</span>'
             if played:
                 actual_outcome = ("H" if m["home_score"] > m["away_score"] else
                                    ("A" if m["home_score"] < m["away_score"] else "D"))
@@ -268,9 +313,16 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
                         elo_mark = '<span class="mark mark-ok">&#10003;</span>'
                     else:
                         elo_mark = '<span class="mark mark-bad">&#10007;</span>'
+                if mp:
+                    if actual_outcome == market_outcome:
+                        market_mark = '<span class="mark mark-ok">&#10003;</span>'
+                    else:
+                        market_mark = '<span class="mark mark-bad">&#10007;</span>'
 
             elo_cells = (f'<td class="pick pick-elo">{elo_pick}</td><td>{elo_mark}</td>'
                          if show_elo else "")
+            market_cells = (f'<td class="pick pick-market">{market_pick}</td><td>{market_mark}</td>'
+                             if show_market else "")
             rows.append(f"""
             <tr>
               <td>{date}</td>
@@ -280,17 +332,19 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
               <td class="pick">{pick}</td>
               <td>{mark}</td>
               {elo_cells}
+              {market_cells}
             </tr>""")
 
         summary_acc = f" &middot; Poisson {hits}/{total} σωστά" if total else ""
         elo_th = '<th>Elo</th><th>&#10003;</th>' if show_elo else ""
+        market_th = '<th>Αγορά</th><th>&#10003;</th>' if show_market else ""
         blocks.append(f"""
       <details>
         <summary>Αγωνιστική {md}{summary_acc}</summary>
         <table>
           <thead>
             <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
-                <th>Αποτέλεσμα</th><th>Poisson</th><th>&#10003;</th>{elo_th}</tr>
+                <th>Αποτέλεσμα</th><th>Poisson</th><th>&#10003;</th>{elo_th}{market_th}</tr>
           </thead>
           <tbody>{"".join(rows)}</tbody>
         </table>
@@ -331,6 +385,7 @@ _CSS = """
   .team { font-weight:600; color:#fff; text-align:left; }
   .pick { font-weight:700; color:#facc15; }
   .pick-elo { color:#60a5fa; }
+  .pick-market { color:#c084fc; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
@@ -398,13 +453,16 @@ def render_site(sections: list[dict], out_filename: str = "index.html") -> str:
   <div class="generated">ενημερώθηκε {generated}</div>
   <nav>{nav_buttons}</nav>
   {panels}
-  <footer>Δεδομένα: football-data.org &middot; Δύο μοντέλα πρόβλεψης:
+  <footer>Δεδομένα: football-data.org &middot; Μοντέλα πρόβλεψης:
     <span style="color:#facc15">Poisson</span> (μέσοι όροι γκολ με στάθμιση
-    πρόσφατης φόρμας + διόρθωση Dixon-Coles) και
+    πρόσφατης φόρμας + διόρθωση Dixon-Coles),
     <span style="color:#60a5fa">Elo</span> (rating που ενημερώνεται
-    αγώνα-αγώνα, πιο ευαίσθητο σε ξαφνικές αλλαγές φόρμας) &middot;
-    Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο Poisson,
-    χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
+    αγώνα-αγώνα, πιο ευαίσθητο σε ξαφνικές αλλαγές φόρμας) και
+    <span style="color:#c084fc">Αγορά</span> (implied probabilities από
+    πραγματικές αποδόσεις στοιχήματος, The Odds API -- μόνο ζωντανές, χωρίς
+    ιστορικό, οπότε εμφανίζεται μόνο στην τρέχουσα σεζόν από εδώ και πέρα)
+    &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
+    Poisson, χωρίς head-to-head στα ισοβαθμίσαντα.</footer>
   <script>{_JS}</script>
 </body>
 </html>"""
@@ -420,12 +478,16 @@ def render_report(season: int, matchday: int | None, fixtures: list[dict],
                    accuracy: dict | None = None, sim: dict | None = None,
                    team_accuracy: dict | None = None, elo_accuracy: dict | None = None,
                    elo_team_accuracy: dict | None = None,
+                   market_accuracy: dict | None = None,
+                   market_team_accuracy: dict | None = None,
                    out_filename: str = "index.html", note: str | None = None) -> str:
     """Σελίδα με μία μόνο καρτέλα (χρησιμοποιείται από το backtest.py για
     γρήγορο, αυτόνομο έλεγχο μιας σεζόν)."""
     section = build_section("season", f"Σεζόν {season}-{season + 1}", season, matchday,
                              fixtures, preds, table=table, accuracy=accuracy, sim=sim,
                              team_accuracy=team_accuracy, elo_accuracy=elo_accuracy,
-                             elo_team_accuracy=elo_team_accuracy, note=note, active=True)
+                             elo_team_accuracy=elo_team_accuracy,
+                             market_accuracy=market_accuracy,
+                             market_team_accuracy=market_team_accuracy, note=note, active=True)
     return render_site([{"id": "season", "label": f"Σεζόν {season}-{season + 1}",
                           "html": section}], out_filename=out_filename)

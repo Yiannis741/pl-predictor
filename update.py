@@ -18,7 +18,7 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src import config, db, elo, predictor, render, simulate  # noqa: E402
+from src import config, db, elo, odds_client, predictor, render, simulate  # noqa: E402
 from src.api_client import FootballDataClient  # noqa: E402
 
 # Αν η τρέχουσα σεζόν έχει λιγότερους τελειωμένους αγώνες από αυτό το όριο
@@ -74,25 +74,53 @@ def main() -> None:
 
     matchday, fixtures = db.next_matchday_fixtures(season)
     preds = []
+    market_matched = 0
+    market_by_names = {}
     if matchday is None:
         print("Δεν βρέθηκε επόμενη αγωνιστική με προγραμματισμένους αγώνες.")
     else:
         print(f"Προβλέψεις για αγωνιστική {matchday} ({len(fixtures)} αγώνες)...")
+        print("Λήψη αποδόσεων στοιχήματος (The Odds API) για σύγκριση...")
+        market_by_names = odds_client.fetch_predictions_by_team_names()
+        teams_lookup = db.team_names()
         for m in fixtures:
             pred = predictor.predict_match(model, m["home_team_id"], m["away_team_id"])
             preds.append({"match_id": m["id"], "model": "poisson", **pred})
             epred = elo.predict_match(ratings, m["home_team_id"], m["away_team_id"])
             preds.append({"match_id": m["id"], "model": "elo", **epred})
+
+            home_name = teams_lookup.get(m["home_team_id"], {}).get("name")
+            away_name = teams_lookup.get(m["away_team_id"], {}).get("name")
+            mpred = market_by_names.get((home_name, away_name))
+            if mpred:
+                market_matched += 1
+                preds.append({
+                    "match_id": m["id"], "model": "market",
+                    "prob_home": mpred["prob_home"], "prob_draw": mpred["prob_draw"],
+                    "prob_away": mpred["prob_away"],
+                    "predicted_outcome": mpred["predicted_outcome"],
+                })
+        if market_by_names:
+            print(f"  Αποδόσεις αγοράς: {market_matched}/{len(fixtures)} αγώνες ταιριάχτηκαν.")
+        else:
+            print("  Δεν βρέθηκαν αποδόσεις αγοράς (λείπει token ή εξαντλήθηκε το όριο) -- "
+                  "συνεχίζω μόνο με Poisson/Elo.")
         db.save_predictions(preds)
 
     print("Υπολογισμός βαθμολογίας/φόρμας...")
     table = db.standings_and_form(season)
 
-    print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων (Poisson & Elo)...")
+    print("Έλεγχος ακρίβειας προηγούμενων προβλέψεων (Poisson, Elo & Αγορά)...")
     accuracy = db.accuracy_stats(season, model="poisson")
     team_accuracy = db.team_accuracy(season, model="poisson")
     elo_accuracy = db.accuracy_stats(season, model="elo")
     elo_team_accuracy = db.team_accuracy(season, model="elo")
+    market_accuracy = db.accuracy_stats(season, model="market")
+    market_team_accuracy = db.team_accuracy(season, model="market")
+    # Η "αγορά" δεν έχει ιστορικό (μόνο ζωντανές αποδόσεις) -- δείχνουμε τη
+    # στήλη μόνο αν όντως υπάρχουν δεδομένα (τρέξιμο με έγκυρο token, έστω
+    # και μία φορά στο παρελθόν για τη φετινή σεζόν).
+    show_market_current = bool(market_by_names) or bool(market_accuracy.get("total"))
 
     print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές, μοντέλο Poisson)...")
     all_matches = db.season_matches(season)
@@ -106,6 +134,8 @@ def main() -> None:
             "current", current_label, season, matchday, fixtures, preds,
             table=table, accuracy=accuracy, sim=sim, team_accuracy=team_accuracy,
             elo_accuracy=elo_accuracy, elo_team_accuracy=elo_team_accuracy,
+            market_accuracy=market_accuracy if show_market_current else None,
+            market_team_accuracy=market_team_accuracy if show_market_current else None,
             active=True,
         ),
     }]
@@ -116,6 +146,7 @@ def main() -> None:
             "detail-current", f"Αναλυτικά {season}-{season + 1}", season,
             all_matches, db.predictions_for_season(season, model="poisson"),
             db.predictions_for_season(season, model="elo"),
+            db.predictions_for_season(season, model="market") if show_market_current else None,
         ),
     }]
 

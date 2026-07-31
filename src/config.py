@@ -26,6 +26,11 @@ _load_dotenv(BASE_DIR / ".env")
 FOOTBALL_DATA_TOKEN = os.environ.get("FOOTBALL_DATA_TOKEN", "").strip()
 COMPETITION_CODE = "PL"  # Premier League στο football-data.org
 
+# Προαιρετικό: αν λείπει, το πρόγραμμα συνεχίζει κανονικά μόνο με τα δύο
+# μοντέλα (Poisson/Elo) χωρίς τη στήλη "Αγορά". The Odds API -- ζωντανές
+# αποδόσεις στοιχήματος, όχι ιστορικό (θέλει πληρωμένο πλάνο).
+ODDS_API_TOKEN = os.environ.get("ODDS_API_TOKEN", "").strip()
+
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "pl_predictor.db"
 OUTPUT_DIR = BASE_DIR / "output"
