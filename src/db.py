@@ -47,6 +47,10 @@ CREATE TABLE IF NOT EXISTS predictions (
     prob_away REAL,
     rating_home REAL,
     rating_away REAL,
+    odds_home REAL,
+    odds_draw REAL,
+    odds_away REAL,
+    bookmaker TEXT,
     calibration_version INTEGER NOT NULL DEFAULT 0,
     generated_at TEXT,
     PRIMARY KEY (match_id, model)
@@ -81,6 +85,12 @@ def _migrate(conn) -> None:
         conn.execute(
             "ALTER TABLE predictions ADD COLUMN calibration_version INTEGER NOT NULL DEFAULT 0"
         )
+    for column, column_type in (
+        ("odds_home", "REAL"), ("odds_draw", "REAL"), ("odds_away", "REAL"),
+        ("bookmaker", "TEXT"),
+    ):
+        if column not in prediction_cols:
+            conn.execute(f"ALTER TABLE predictions ADD COLUMN {column} {column_type}")
 
 
 def _calibrated_probabilities(row, model: str) -> tuple[float, float, float] | None:
@@ -216,7 +226,9 @@ def team_names() -> dict[int, dict]:
     """Global -- τα team_id είναι μοναδικά σε όλο το football-data.org,
     ανεξαρτήτως πρωταθλήματος."""
     with connect() as conn:
-        rows = conn.execute("SELECT id, name, crest FROM teams").fetchall()
+        rows = conn.execute(
+            "SELECT id, name, short_name, tla, crest FROM teams"
+        ).fetchall()
         return {r["id"]: dict(r) for r in rows}
 
 
@@ -247,6 +259,8 @@ def standings_and_form(season: int, competition: str = "PL", form_length: int = 
             table[team_id] = {
                 "team_id": team_id,
                 "name": names.get(team_id, {}).get("name", f"Team {team_id}"),
+                "short_name": names.get(team_id, {}).get("short_name"),
+                "crest": names.get(team_id, {}).get("crest"),
                 "played": 0, "won": 0, "draw": 0, "lost": 0,
                 "gf": 0, "ga": 0, "points": 0,
             }
@@ -465,19 +479,24 @@ def save_predictions(preds: list[dict]) -> None:
             conn.execute(
                 """INSERT INTO predictions (match_id, model, predicted_home_score,
                        predicted_away_score, prob_home, prob_draw, prob_away,
-                       rating_home, rating_away, calibration_version, generated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                       rating_home, rating_away, odds_home, odds_draw, odds_away,
+                       bookmaker, calibration_version, generated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                    ON CONFLICT(match_id, model) DO UPDATE SET
                      predicted_home_score=excluded.predicted_home_score,
                      predicted_away_score=excluded.predicted_away_score,
                      prob_home=excluded.prob_home, prob_draw=excluded.prob_draw,
                       prob_away=excluded.prob_away, rating_home=excluded.rating_home,
                       rating_away=excluded.rating_away,
+                      odds_home=excluded.odds_home, odds_draw=excluded.odds_draw,
+                      odds_away=excluded.odds_away, bookmaker=excluded.bookmaker,
                       calibration_version=excluded.calibration_version,
                       generated_at=excluded.generated_at""",
                 (p["match_id"], p.get("model", "poisson"),
                  p.get("predicted_home_score"), p.get("predicted_away_score"),
                   p["prob_home"], p["prob_draw"], p["prob_away"],
                   p.get("rating_home"), p.get("rating_away"),
+                  p.get("odds_home"), p.get("odds_draw"), p.get("odds_away"),
+                  p.get("bookmaker"),
                   p.get("calibration_version", 0)),
             )

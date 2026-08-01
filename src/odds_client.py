@@ -179,7 +179,11 @@ def _probs_from_bookmaker(bookmaker: dict, home_name: str, away_name: str):
         prices = {o["name"]: o["price"] for o in market.get("outcomes", [])
                    if o.get("name") and o.get("price")}
         if home_name in prices and away_name in prices and "Draw" in prices:
-            return _implied_probs(prices[home_name], prices["Draw"], prices[away_name])
+            odds = (float(prices[home_name]), float(prices["Draw"]), float(prices[away_name]))
+            return {
+                "probabilities": _implied_probs(*odds),
+                "odds": odds,
+            }
     return None
 
 
@@ -206,20 +210,30 @@ def extract_match_odds(event: dict) -> dict | None:
 
     pinnacle = next((b for b in bookmakers if b.get("key") == PREFERRED_BOOKMAKER), None)
     if pinnacle:
-        probs = _probs_from_bookmaker(pinnacle, home_name, away_name)
-        if probs:
-            r = _build_result(*probs)
+        quote = _probs_from_bookmaker(pinnacle, home_name, away_name)
+        if quote:
+            r = _build_result(*quote["probabilities"])
+            r["odds_home"], r["odds_draw"], r["odds_away"] = quote["odds"]
+            r["bookmaker"] = pinnacle.get("title") or "Pinnacle"
             r["home_name_raw"], r["away_name_raw"] = home_name, away_name
             return r
 
-    all_probs = [p for p in (_probs_from_bookmaker(bk, home_name, away_name)
-                              for bk in bookmakers) if p]
-    if not all_probs:
+    quotes = [quote for quote in (
+        _probs_from_bookmaker(bookmaker, home_name, away_name)
+        for bookmaker in bookmakers
+    ) if quote]
+    if not quotes:
         return None
-    ph = sum(p[0] for p in all_probs) / len(all_probs)
-    pd = sum(p[1] for p in all_probs) / len(all_probs)
-    pa = sum(p[2] for p in all_probs) / len(all_probs)
+    ph = sum(quote["probabilities"][0] for quote in quotes) / len(quotes)
+    pd = sum(quote["probabilities"][1] for quote in quotes) / len(quotes)
+    pa = sum(quote["probabilities"][2] for quote in quotes) / len(quotes)
+    odds = tuple(
+        sum(quote["odds"][index] for quote in quotes) / len(quotes)
+        for index in range(3)
+    )
     r = _build_result(ph, pd, pa)
+    r["odds_home"], r["odds_draw"], r["odds_away"] = odds
+    r["bookmaker"] = f"Μ.Ο. {len(quotes)} γραφείων"
     r["home_name_raw"], r["away_name_raw"] = home_name, away_name
     return r
 

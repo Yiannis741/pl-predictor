@@ -115,6 +115,10 @@ def run_update(client: FootballDataClient | None, code: str,
                     "prob_home": mpred["prob_home"], "prob_draw": mpred["prob_draw"],
                     "prob_away": mpred["prob_away"],
                     "predicted_outcome": mpred["predicted_outcome"],
+                    "odds_home": mpred.get("odds_home"),
+                    "odds_draw": mpred.get("odds_draw"),
+                    "odds_away": mpred.get("odds_away"),
+                    "bookmaker": mpred.get("bookmaker"),
                 })
         if not fetch:
             stored_market = db.predictions_for_season(

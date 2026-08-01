@@ -4,7 +4,7 @@
 import math
 import sys
 
-from src import db
+from src import competitions, db
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -78,6 +78,30 @@ def _print_result(label: str, result: dict) -> None:
     )
 
 
+def print_by_league(by_model: dict[str, list[dict]], holdout: int) -> None:
+    print("\nΑνάλυση holdout ανά πρωτάθλημα")
+    print("Πρωτάθλημα                 Μοντέλο       n   accuracy  log loss  Brier")
+    print("-" * 76)
+    for competition in competitions.COMPETITIONS:
+        code = competition["code"]
+        first = True
+        for model in ("poisson", "elo"):
+            rows = [
+                row for row in by_model[model]
+                if row["season"] == holdout and row["competition"] == code
+            ]
+            result = evaluate_rows(rows)
+            if not result["total"]:
+                continue
+            league_name = competition["name"] if first else ""
+            first = False
+            print(
+                f"{league_name:<28} {model.capitalize():<9} "
+                f"{result['total']:>5}  {result['accuracy'] * 100:7.1f}%  "
+                f"{result['log_loss']:8.3f}  {result['brier']:6.3f}"
+            )
+
+
 def main() -> None:
     by_model = {
         model: db.all_predictions_with_results(model)
@@ -105,6 +129,8 @@ def main() -> None:
         f"1={baseline[0] * 100:.1f}%  Χ={baseline[1] * 100:.1f}%  "
         f"2={baseline[2] * 100:.1f}%"
     )
+    if "--by-league" in sys.argv[1:]:
+        print_by_league(by_model, holdout)
 
 
 if __name__ == "__main__":

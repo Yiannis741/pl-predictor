@@ -20,8 +20,31 @@ TOP4 = 4  # προεπιλογή -- βλ. παράμετρο top_n παρακά�
 RELEGATION_SPOTS = 3  # προεπιλογή -- βλ. παράμετρο releg_n παρακάτω
 
 
+def _simulation_seed(season: int, matches: list[dict]) -> int:
+    """Σταθερό seed από τη σεζόν και τα IDs των αγώνων, ανεξάρτητο από Python hash."""
+    seed = int(season) & 0xFFFFFFFF
+    match_ids = sorted(int(m["id"]) for m in matches if m.get("id") is not None)
+    for match_id in match_ids:
+        seed = (seed * 1664525 + match_id + 1013904223) & 0xFFFFFFFF
+    return seed
+
+
+def _rank_teams(points: np.ndarray, gd: np.ndarray, gf: np.ndarray,
+                rng: np.random.Generator | None = None,
+                randomize_exact_ties: bool = True) -> np.ndarray:
+    """Βαθμοί -> διαφορά -> γκολ, με δίκαιο τελευταίο κριτήριο στις πλήρεις ισοβαθμίες."""
+    if randomize_exact_ties:
+        if rng is None:
+            raise ValueError("rng is required when exact ties are randomized")
+        tie_break = rng.random(len(points))
+    else:
+        tie_break = np.arange(len(points))
+    return np.lexsort((tie_break, -gf, -gd, -points))
+
+
 def simulate_season(model: dict, all_matches: list[dict], season: int,
-                     top_n: int = TOP4, releg_n: int = RELEGATION_SPOTS) -> dict[int, dict]:
+                     top_n: int = TOP4, releg_n: int = RELEGATION_SPOTS,
+                     random_seed: int | None = None) -> dict[int, dict]:
     """all_matches: όλοι οι αγώνες της σεζόν (τελειωμένοι + προγραμματισμένοι).
     top_n/releg_n: μέγεθος της "κορυφαίας" και της "υποβιβαστικής" ζώνης --
     διαφέρει ανά πρωτάθλημα (βλ. src/competitions.py). Επιστρέφει
@@ -78,7 +101,8 @@ def simulate_season(model: dict, all_matches: list[dict], season: int,
     top4 = np.zeros(n_teams, dtype=int)
     releg = np.zeros(n_teams, dtype=int)
 
-    rng = np.random.default_rng()
+    seed = _simulation_seed(season, all_matches) if random_seed is None else random_seed
+    rng = np.random.default_rng(seed)
 
     if len(lam_home) > 0:
         sim_home_goals = rng.poisson(lam_home, size=(n_sim, len(lam_home)))
@@ -103,8 +127,12 @@ def simulate_season(model: dict, all_matches: list[dict], season: int,
             np.add.at(gf, home_idx, hg)
             np.add.at(gf, away_idx, ag)
 
-        # Ταξινόμηση: βαθμοί -> διαφορά τερμάτων -> γκολ υπέρ (χωρίς head-to-head).
-        order = np.lexsort((-gf, -gd, -points))
+        # Σε ενεργή προσομοίωση η πλήρης ισοβαθμία λύνεται τυχαία, ώστε να μην
+        # ευνοούνται συστηματικά τα μικρότερα team IDs. Σε τελειωμένη σεζόν
+        # κρατάμε ντετερμινιστική σειρά, αφού δεν προσομοιώνεται κανένα μέλλον.
+        order = _rank_teams(
+            points, gd, gf, rng=rng, randomize_exact_ties=bool(remaining)
+        )
 
         champion = order[0]
         title[champion] += 1

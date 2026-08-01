@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src import config, db, elo, predictor, render
+import numpy as np
+
+from src import config, db, elo, odds_client, predictor, render, simulate
 
 
 class EloCalibrationTests(unittest.TestCase):
@@ -60,6 +62,57 @@ class PoissonProbabilityTests(unittest.TestCase):
         self.assertLessEqual(prediction["prob_over25"], 1.0)
         self.assertGreaterEqual(prediction["prob_btts"], 0.0)
         self.assertLessEqual(prediction["prob_btts"], 1.0)
+
+
+class SimulationTests(unittest.TestCase):
+    def test_seed_is_stable_when_match_order_changes(self):
+        matches = [{"id": 30}, {"id": 10}, {"id": 20}]
+        self.assertEqual(
+            simulate._simulation_seed(2026, matches),
+            simulate._simulation_seed(2026, list(reversed(matches))),
+        )
+
+    def test_exact_ties_do_not_favor_first_team(self):
+        rng = np.random.default_rng(123)
+        points = np.zeros(4)
+        gd = np.zeros(4)
+        gf = np.zeros(4)
+        first_counts = np.zeros(4, dtype=int)
+
+        for _ in range(2000):
+            order = simulate._rank_teams(points, gd, gf, rng=rng)
+            first_counts[order[0]] += 1
+
+        self.assertTrue(all(400 < count < 600 for count in first_counts))
+
+    def test_same_inputs_produce_same_simulation(self):
+        model = {
+            "avg_home_goals": 1.4,
+            "avg_away_goals": 1.1,
+            "teams": {
+                team: {
+                    "home_attack": 1.0, "home_defense": 1.0,
+                    "away_attack": 1.0, "away_defense": 1.0,
+                }
+                for team in (1, 2)
+            },
+        }
+        matches = [
+            {
+                "id": 1, "status": "SCHEDULED",
+                "home_team_id": 1, "away_team_id": 2,
+            },
+            {
+                "id": 2, "status": "SCHEDULED",
+                "home_team_id": 2, "away_team_id": 1,
+            },
+        ]
+
+        with patch.object(simulate, "N_SIMULATIONS", 250):
+            first = simulate.simulate_season(model, matches, 2026, top_n=1, releg_n=1)
+            second = simulate.simulate_season(model, matches, 2026, top_n=1, releg_n=1)
+
+        self.assertEqual(first, second)
 
 
 class AccuracyMetricTests(unittest.TestCase):
@@ -145,6 +198,73 @@ class RenderNavigationTests(unittest.TestCase):
         self.assertIn("Επισκόπηση", html)
         self.assertIn("Αγώνες", html)
         self.assertIn('data-season="current" data-view="details"', html)
+
+    def test_fixture_signal_uses_ev_only_when_decimal_odds_exist(self):
+        fixture = {
+            "id": 1, "home_team_id": 10, "away_team_id": 20,
+            "utc_date": "2026-08-10T18:00:00Z",
+        }
+        teams = {
+            10: {"name": "Home FC", "short_name": "Home", "crest": None},
+            20: {"name": "Away FC", "short_name": "Away", "crest": None},
+        }
+        poisson = {
+            1: {
+                "predicted_outcome": "H", "prob_home": 0.55, "prob_draw": 0.25,
+                "prob_away": 0.20, "predicted_home_score": 2,
+                "predicted_away_score": 1, "lambda_home": 1.8, "lambda_away": 1.0,
+                "prob_over25": 0.54, "prob_btts": 0.49,
+            }
+        }
+        market_with_odds = {
+            1: {
+                "prob_home": 0.45, "prob_draw": 0.30, "prob_away": 0.25,
+                "odds_home": 2.20, "odds_draw": 3.20, "odds_away": 3.80,
+                "bookmaker": "Pinnacle",
+            }
+        }
+        market_without_odds = {
+            1: {"prob_home": 0.45, "prob_draw": 0.30, "prob_away": 0.25}
+        }
+
+        ev_html = render._fixtures_table(
+            [fixture], poisson, {}, teams, market_with_odds
+        )
+        gap_html = render._fixtures_table(
+            [fixture], poisson, {}, teams, market_without_odds
+        )
+
+        self.assertIn("EV +21%", ev_html)
+        self.assertIn("απόκλιση +10", gap_html)
+        self.assertNotIn("EV ", gap_html)
+
+
+class OddsExtractionTests(unittest.TestCase):
+    def test_pinnacle_quote_keeps_decimal_odds_and_source(self):
+        event = {
+            "home_team": "Home",
+            "away_team": "Away",
+            "bookmakers": [{
+                "key": "pinnacle",
+                "title": "Pinnacle",
+                "markets": [{
+                    "key": "h2h",
+                    "outcomes": [
+                        {"name": "Home", "price": 2.1},
+                        {"name": "Draw", "price": 3.2},
+                        {"name": "Away", "price": 3.8},
+                    ],
+                }],
+            }],
+        }
+
+        result = odds_client.extract_match_odds(event)
+
+        self.assertEqual(result["bookmaker"], "Pinnacle")
+        self.assertEqual(result["odds_home"], 2.1)
+        self.assertAlmostEqual(
+            result["prob_home"] + result["prob_draw"] + result["prob_away"], 1.0
+        )
 
 
 if __name__ == "__main__":

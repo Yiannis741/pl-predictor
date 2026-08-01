@@ -4,23 +4,33 @@
 ιστορική σεζόν, αντί για μία μακριά σελίδα scroll."""
 
 import datetime
+import html
 
 from . import competitions, config, db
 
 FORM_LABELS = {"W": "Ν", "D": "Ι", "L": "Η"}  # Νίκη / Ισοπαλία / Ήττα
 OUTCOME_LABELS = {"H": "1", "D": "Χ", "A": "2"}
 
-# Πόσο πρέπει να διαφωνεί το Poisson με την αγορά (στην ΙΔΙΑ έκβαση) για να
-# το σημειώσουμε σαν "αξίας" (value) -- αν το μοντέλο μας δίνει σημαντικά
-# μεγαλύτερη πιθανότητα από ό,τι υπονοούν οι αποδόσεις, η αγορά πιθανώς
-# υποτιμά αυτή την έκβαση. Καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.
-VALUE_EDGE_THRESHOLD = 0.08
+# Ελάχιστη διαφορά Poisson - αγοράς στην ίδια έκβαση για οπτική επισήμανση.
+MARKET_GAP_THRESHOLD = 0.08
+EV_THRESHOLD = 0.05
 
 
 def _fmt_pct(x: float | None) -> str:
     if x is None:
         return "-"
     return f"{x:.0f}%"
+
+
+def _outcome_from_probabilities(prediction: dict) -> str:
+    ph, pd, pa = (
+        prediction["prob_home"], prediction["prob_draw"], prediction["prob_away"]
+    )
+    if ph >= pd and ph >= pa:
+        return "H"
+    if pa >= pd:
+        return "A"
+    return "D"
 
 
 def _fmt_date(iso_str: str | None) -> str:
@@ -34,6 +44,35 @@ def _fmt_date(iso_str: str | None) -> str:
         return iso_str
 
 
+def _confidence_badge(probability: float) -> str:
+    if probability < 0.45:
+        level, label = "low", "χαμηλή"
+    elif probability < 0.60:
+        level, label = "medium", "μέτρια"
+    else:
+        level, label = "high", "υψηλή"
+    return (
+        f'<span class="confidence confidence-{level}" '
+        f'title="Επίπεδο βεβαιότητας από την πιθανότητα της επικρατέστερης έκβασης">'
+        f'{label}</span>'
+    )
+
+
+def _team_html(team: dict | None) -> str:
+    team = team or {}
+    full_name = team.get("name") or "?"
+    display_name = team.get("short_name") or full_name
+    crest = team.get("crest")
+    crest_html = (
+        f'<img class="team-crest" src="{html.escape(crest, quote=True)}" alt="" loading="lazy">'
+        if crest else ""
+    )
+    return (
+        f'<span class="team-cell" title="{html.escape(full_name, quote=True)}">'
+        f'{crest_html}<span>{html.escape(display_name)}</span></span>'
+    )
+
+
 def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
                      elo_preds_by_match: dict, teams: dict,
                      market_preds_by_match: dict | None = None) -> str | None:
@@ -44,16 +83,20 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
     show_market = bool(market_preds_by_match)
     rows_html = []
     for m in fixtures:
-        home = teams.get(m["home_team_id"], {}).get("name", "?")
-        away = teams.get(m["away_team_id"], {}).get("name", "?")
+        home = _team_html(teams.get(m["home_team_id"]))
+        away = _team_html(teams.get(m["away_team_id"]))
         p = preds_by_match.get(m["id"])
         ep = elo_preds_by_match.get(m["id"])
         mp = market_preds_by_match.get(m["id"])
         date = _fmt_date(m.get("utc_date"))
         if p:
-            pick_letter = OUTCOME_LABELS.get(p.get("predicted_outcome"), "?")
+            outcome = p.get("predicted_outcome") or _outcome_from_probabilities(p)
+            pick_letter = OUTCOME_LABELS.get(outcome, "?")
             pick_conf = max(p["prob_home"], p["prob_draw"], p["prob_away"])
-            pick = f'{pick_letter} ({_fmt_pct(pick_conf * 100)})'
+            pick = (
+                f'{pick_letter} ({_fmt_pct(pick_conf * 100)}) '
+                f'{_confidence_badge(pick_conf)}'
+            )
             score = f'{p["predicted_home_score"]}-{p["predicted_away_score"]}'
             probs = (f'{_fmt_pct(p["prob_home"] * 100)} / {_fmt_pct(p["prob_draw"] * 100)} / '
                      f'{_fmt_pct(p["prob_away"] * 100)}')
@@ -68,28 +111,56 @@ def _fixtures_table(fixtures: list[dict], preds_by_match: dict,
         else:
             pick, score, probs, xg, ou, btts = "-", "-", "-", "-", "-", "-"
 
-        # Value bet σήμα: το Poisson δίνει σημαντικά μεγαλύτερη πιθανότητα
-        # από την αγορά στην ΙΔΙΑ έκβαση που προβλέπουμε.
+        # Πραγματικό θεωρητικό EV όταν έχουμε αποθηκευμένη δεκαδική απόδοση.
+        # Για παλιές εγγραφές χωρίς odds δείχνουμε μόνο τη διαφορά πιθανοτήτων.
         if p and mp:
-            outcome = p.get("predicted_outcome")
+            outcome = p.get("predicted_outcome") or _outcome_from_probabilities(p)
             p_by_outcome = {"H": p["prob_home"], "D": p["prob_draw"], "A": p["prob_away"]}
             m_by_outcome = {"H": mp["prob_home"], "D": mp["prob_draw"], "A": mp["prob_away"]}
+            odds_by_outcome = {
+                "H": mp.get("odds_home"), "D": mp.get("odds_draw"), "A": mp.get("odds_away")
+            }
             edge = p_by_outcome.get(outcome, 0) - m_by_outcome.get(outcome, 0)
-            if edge >= VALUE_EDGE_THRESHOLD:
-                pick += (f' <span class="value-badge" title="Το Poisson δίνει {_fmt_pct(edge * 100)} '
-                         f'μονάδες παραπάνω πιθανότητα από την αγορά σε αυτή την έκβαση">&#9650; value</span>')
+            price = odds_by_outcome.get(outcome)
+            if price:
+                expected_value = p_by_outcome[outcome] * float(price) - 1.0
+                if expected_value >= EV_THRESHOLD:
+                    source = html.escape(mp.get("bookmaker") or "διαθέσιμη αγορά")
+                    pick += (
+                        f' <span class="market-signal signal-ev" title="Θεωρητικό EV '
+                        f'{expected_value * 100:+.1f}% με απόδοση {float(price):.2f} '
+                        f'από {source}. Δεν αποτελεί πρόταση στοιχηματισμού.">'
+                        f'EV {expected_value * 100:+.0f}%</span>'
+                    )
+            elif edge >= MARKET_GAP_THRESHOLD:
+                pick += (
+                    f' <span class="market-signal signal-gap" title="Το Poisson δίνει '
+                    f'{edge * 100:.1f} ποσοστιαίες μονάδες μεγαλύτερη πιθανότητα από '
+                    f'την αγορά. Δεν υπάρχει αποθηκευμένη απόδοση για υπολογισμό EV.">'
+                    f'απόκλιση +{edge * 100:.0f}</span>'
+                )
         if ep:
-            elo_letter = OUTCOME_LABELS.get(ep.get("predicted_outcome"), "?")
+            elo_outcome = ep.get("predicted_outcome") or _outcome_from_probabilities(ep)
+            elo_letter = OUTCOME_LABELS.get(elo_outcome, "?")
             elo_conf = max(ep["prob_home"], ep["prob_draw"], ep["prob_away"])
-            elo_pick = f'{elo_letter} ({_fmt_pct(elo_conf * 100)})'
+            elo_pick = (
+                f'{elo_letter} ({_fmt_pct(elo_conf * 100)}) '
+                f'{_confidence_badge(elo_conf)}'
+            )
         else:
             elo_pick = "-"
         market_cell = ""
         if show_market:
             if mp:
-                m_letter = OUTCOME_LABELS.get(mp.get("predicted_outcome"), "?")
+                market_outcome = (
+                    mp.get("predicted_outcome") or _outcome_from_probabilities(mp)
+                )
+                m_letter = OUTCOME_LABELS.get(market_outcome, "?")
                 m_conf = max(mp["prob_home"], mp["prob_draw"], mp["prob_away"])
-                market_pick = f'{m_letter} ({_fmt_pct(m_conf * 100)})'
+                market_pick = (
+                    f'{m_letter} ({_fmt_pct(m_conf * 100)}) '
+                    f'{_confidence_badge(m_conf)}'
+                )
             else:
                 market_pick = "-"
             market_cell = f'<td class="pick pick-market">{market_pick}</td>'
@@ -174,7 +245,7 @@ def _standings_table(table: list[dict], sim: dict, team_acc: dict | None = None,
         rows.append(f"""
         <tr class="{row_class}">
           <td>{r["position"]}</td>
-          <td class="team">{r["name"]}</td>
+          <td class="team">{_team_html(r)}</td>
           <td>{r["played"]}</td>
           <td>{r["won"]}</td>
           <td>{r["draw"]}</td>
@@ -241,7 +312,9 @@ def build_section(section_id: str, label: str, season: int, matchday: int | None
   <table>
     <thead>
       <tr><th>Ημ/νία</th><th>Γηπεδούχος</th><th>Φιλοξενούμενος</th>
-          <th>Πρόβλεψη Poisson</th><th>Πιθανό σκορ</th><th>Αναμ. γκολ</th>
+          <th>Πρόβλεψη Poisson</th>
+          <th title="Το πιθανότερο μεμονωμένο σκορ μπορεί να διαφέρει από την πιθανότερη συνολική έκβαση 1/Χ/2">Πιθανό σκορ</th>
+          <th>Αναμ. γκολ</th>
           <th>1 / Χ / 2</th><th>O/U 2.5</th><th>BTTS</th>{elo_th}{market_th}</tr>
     </thead>
     <tbody>
@@ -280,13 +353,7 @@ def _pred_pick(p: dict | None) -> tuple[str, str | None]:
     και για Poisson (έχει predicted_home_score) και για Elo (δεν έχει)."""
     if not p:
         return "-", None
-    ph, pd, pa = p["prob_home"], p["prob_draw"], p["prob_away"]
-    if ph >= pd and ph >= pa:
-        outcome = "H"
-    elif pa >= pd:
-        outcome = "A"
-    else:
-        outcome = "D"
+    outcome = _outcome_from_probabilities(p)
     letter = OUTCOME_LABELS.get(outcome, "?")
     if p.get("predicted_home_score") is not None:
         score = f'{int(p["predicted_home_score"])}-{int(p["predicted_away_score"])}'
@@ -319,8 +386,14 @@ def build_detail_section(section_id: str, label: str, season: int, matches: list
         rows = []
         hits = total = 0
         for m in md_matches:
-            home = teams.get(m["home_team_id"], {}).get("name", "?")
-            away = teams.get(m["away_team_id"], {}).get("name", "?")
+            home_team = teams.get(m["home_team_id"], {})
+            away_team = teams.get(m["away_team_id"], {})
+            home = html.escape(
+                home_team.get("short_name") or home_team.get("name") or "?"
+            )
+            away = html.escape(
+                away_team.get("short_name") or away_team.get("name") or "?"
+            )
             date = _fmt_date(m.get("utc_date"))
             p = preds_by_match.get(m["id"])
             ep = elo_preds_by_match.get(m["id"])
@@ -433,9 +506,19 @@ _CSS = """
   .pick { font-weight:700; color:#facc15; }
   .pick-elo { color:#60a5fa; }
   .pick-market { color:#c084fc; }
-  .value-badge { display:inline-block; background:#164e3488; color:#4ade80; font-size:0.68rem;
-                 font-weight:700; padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.3rem;
-                 vertical-align:middle; cursor:help; }
+  .market-signal { display:inline-block; font-size:0.68rem; font-weight:700;
+                   padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.3rem;
+                   vertical-align:middle; cursor:help; white-space:nowrap; }
+  .signal-ev { background:#164e3488; color:#4ade80; }
+  .signal-gap { background:#78350f88; color:#fbbf24; }
+  .confidence { display:inline-block; font-size:0.64rem; font-weight:600; line-height:1;
+                padding:0.18rem 0.32rem; border:1px solid; border-radius:3px;
+                margin-left:0.2rem; vertical-align:middle; white-space:nowrap; }
+  .confidence-low { color:#94a3b8; border-color:#475569; }
+  .confidence-medium { color:#fbbf24; border-color:#854d0e; }
+  .confidence-high { color:#4ade80; border-color:#166534; }
+  .team-cell { display:flex; align-items:center; gap:0.45rem; min-width:0; }
+  .team-crest { width:1.35rem; height:1.35rem; object-fit:contain; flex:0 0 auto; }
   .score { font-weight:700; color:#4ade80; }
   .xg { color:#7fa3b8; font-size:0.85rem; }
   .probs { color:#9db4c0; font-size:0.85rem; }
@@ -592,9 +675,11 @@ def render_site(sections: list[dict], comp: dict | None = None,
     &middot; Προσομοίωση τελικής βαθμολογίας: Monte Carlo πάνω στο μοντέλο
     Poisson, χωρίς head-to-head στα ισοβαθμίσαντα. Οι ίδιες παράμετροι
     μοντέλων χρησιμοποιούνται σε όλα τα πρωταθλήματα (συντονισμένες πάνω σε
-    δεδομένα Premier League). Η ετικέτα <span class="value-badge" style="margin-left:0">&#9650; value</span>
-    σημαίνει ότι το Poisson δίνει αισθητά μεγαλύτερη πιθανότητα από την
-    αγορά στην ίδια έκβαση -- καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.</footer>
+    δεδομένα Premier League). Η ένδειξη <span class="market-signal signal-ev">EV +x%</span>
+    εμφανίζεται μόνο όταν υπάρχει αποθηκευμένη δεκαδική απόδοση και δείχνει το θεωρητικό
+    expected value του Poisson. Η ένδειξη <span class="market-signal signal-gap">απόκλιση +x</span>
+    συγκρίνει μόνο πιθανότητες όταν δεν υπάρχει απόδοση. Και οι δύο είναι καθαρά
+    πληροφοριακές, όχι συμβουλή στοιχηματισμού.</footer>
   <script>{_JS}</script>
 </body>
 </html>"""
