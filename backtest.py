@@ -147,10 +147,13 @@ def run_backtest(code: str, season: int) -> None:
         exact_txt = (f", {accuracy['exact_pct']:.0f}% ακριβές σκορ"
                      if accuracy.get("exact_pct") is not None else "")
         print(f"Poisson σε {accuracy['total']} αγώνες: "
-              f"{accuracy['result_pct']:.0f}% σωστό αποτέλεσμα{exact_txt}")
+              f"{accuracy['result_pct']:.0f}% σωστό αποτέλεσμα{exact_txt}, "
+              f"log loss={accuracy['log_loss']:.3f}, Brier={accuracy['brier_score']:.3f}")
     if elo_accuracy.get("total"):
         print(f"Elo σε {elo_accuracy['total']} αγώνες: "
-              f"{elo_accuracy['result_pct']:.0f}% σωστό αποτέλεσμα")
+              f"{elo_accuracy['result_pct']:.0f}% σωστό αποτέλεσμα, "
+              f"log loss={elo_accuracy['log_loss']:.3f}, "
+              f"Brier={elo_accuracy['brier_score']:.3f}")
 
 
 if __name__ == "__main__":

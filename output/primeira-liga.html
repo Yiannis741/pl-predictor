@@ -17,9 +17,14 @@
   .meta { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy b { color:#4ade80; }
+  .accuracy strong { color:#dbe7ee; font-weight:600; }
   .generated { color:#5c7182; font-size:0.8rem; margin-bottom:1.2rem; }
-  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem;
-        border-bottom:1px solid #1c3a52; padding-bottom:1rem; }
+  .nav-shell { display:flex; align-items:flex-end; justify-content:space-between; gap:1.5rem;
+               flex-wrap:wrap; margin-bottom:1.5rem; border-bottom:1px solid #1c3a52;
+               padding-bottom:1rem; }
+  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin:0; }
+  .nav-group { display:grid; gap:0.4rem; }
+  .nav-label { color:#5c7182; font-size:0.7rem; font-weight:700; text-transform:uppercase; }
   nav button { background:#132a3e; color:#9db4c0; border:1px solid #1c3a52;
                border-radius:6px; padding:0.5rem 1rem; font-size:0.9rem;
                cursor:pointer; font-family:inherit; }
@@ -72,10 +77,10 @@
 <body>
   <a class="back-link" href="index.html">&larr; Όλα τα πρωταθλήματα</a>
   <h1><img src="https://crests.football-data.org/PPL.png" alt="" class="league-logo">Primeira Liga &mdash; Προβλέψεις</h1>
-  <div class="generated">ενημερώθηκε 31/07/2026 18:12</div>
-  <nav><button data-target="current" class="active" onclick="showTab('current')">Τρέχουσα σεζόν 2026-2027</button><button data-target="season2025" class="" onclick="showTab('season2025')">2025-2026</button><button data-target="season2024" class="" onclick="showTab('season2024')">2024-2025</button><button data-target="season2023" class="" onclick="showTab('season2023')">2023-2024</button><button data-target="detail-current" class="" onclick="showTab('detail-current')">Αναλυτικά 2026-2027</button><button data-target="detail-2025" class="" onclick="showTab('detail-2025')">Αναλυτικά 2025-2026</button><button data-target="detail-2024" class="" onclick="showTab('detail-2024')">Αναλυτικά 2024-2025</button><button data-target="detail-2023" class="" onclick="showTab('detail-2023')">Αναλυτικά 2023-2024</button></nav>
+  <div class="generated">ενημερώθηκε 01/08/2026 12:50</div>
+  <div class="nav-shell"><div class="nav-group"><span class="nav-label">Σεζόν</span><nav><button data-season-choice="current" class="active" onclick="showSelection('current', null)">Τρέχουσα · 2026-2027</button><button data-season-choice="2025" class="" onclick="showSelection('2025', null)">2025-2026</button><button data-season-choice="2024" class="" onclick="showSelection('2024', null)">2024-2025</button><button data-season-choice="2023" class="" onclick="showSelection('2023', null)">2023-2024</button></nav></div><div class="nav-group"><span class="nav-label">Προβολή</span><nav><button data-view-choice="overview" class="active" onclick="showSelection(null, 'overview')">Επισκόπηση</button><button data-view-choice="details" onclick="showSelection(null, 'details')">Αγώνες</button></nav></div></div>
   
-<section id="current" class="tab-panel" style="display:block">
+<section id="current" class="tab-panel" data-season="current" data-view="overview" style="display:block">
   <div class="meta">Σεζόν 2026-2027</div>
   
   <div class="accuracy">Poisson: δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για αξιολόγηση.<br>Elo: δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για αξιολόγηση.<br>Αγορά (αποδόσεις): δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για αξιολόγηση.</div>
@@ -99,7 +104,7 @@
           <td class="probs">36% / 30% / 34%</td>
           <td class="ou">Under 2.5 (56%)</td>
           <td class="ou">51%</td>
-          <td class="pick pick-elo">2 (54%)</td>
+          <td class="pick pick-elo">2 (45%)</td>
           <td class="pick pick-market">-</td>
         </tr>
         <tr>
@@ -112,8 +117,8 @@
           <td class="probs">55% / 27% / 18%</td>
           <td class="ou">Under 2.5 (54%)</td>
           <td class="ou">48%</td>
-          <td class="pick pick-elo">1 (72%)</td>
-          <td class="pick pick-market">1 (36%)</td>
+          <td class="pick pick-elo">1 (56%)</td>
+          <td class="pick pick-market">? (36%)</td>
         </tr>
         <tr>
           <td>08/08/2026 17:00</td>
@@ -125,8 +130,8 @@
           <td class="probs">53% / 25% / 22%</td>
           <td class="ou">Over 2.5 (56%)</td>
           <td class="ou">57%</td>
-          <td class="pick pick-elo">1 (42%)</td>
-          <td class="pick pick-market">1 (51%)</td>
+          <td class="pick pick-elo">1 (39%)</td>
+          <td class="pick pick-market">? (51%)</td>
         </tr>
         <tr>
           <td>08/08/2026 19:30</td>
@@ -138,7 +143,7 @@
           <td class="probs">10% / 19% / 71%</td>
           <td class="ou">Over 2.5 (60%)</td>
           <td class="ou">50%</td>
-          <td class="pick pick-elo">2 (81%)</td>
+          <td class="pick pick-elo">2 (64%)</td>
           <td class="pick pick-market">-</td>
         </tr>
         <tr>
@@ -151,8 +156,8 @@
           <td class="probs">73% / 20% / 7%</td>
           <td class="ou">Under 2.5 (56%)</td>
           <td class="ou">32%</td>
-          <td class="pick pick-elo">1 (90%)</td>
-          <td class="pick pick-market">1 (80%)</td>
+          <td class="pick pick-elo">1 (73%)</td>
+          <td class="pick pick-market">? (80%)</td>
         </tr>
         <tr>
           <td>09/08/2026 19:30</td>
@@ -164,7 +169,7 @@
           <td class="probs">19% / 27% / 54%</td>
           <td class="ou">Under 2.5 (52%)</td>
           <td class="ou">50%</td>
-          <td class="pick pick-elo">2 (54%)</td>
+          <td class="pick pick-elo">2 (45%)</td>
           <td class="pick pick-market">-</td>
         </tr>
         <tr>
@@ -177,8 +182,8 @@
           <td class="probs">54% / 26% / 20%</td>
           <td class="ou">Over 2.5 (51%)</td>
           <td class="ou">52%</td>
-          <td class="pick pick-elo">1 (61%)</td>
-          <td class="pick pick-market">1 (51%)</td>
+          <td class="pick pick-elo">1 (50%)</td>
+          <td class="pick pick-market">? (51%)</td>
         </tr>
         <tr>
           <td>09/08/2026 19:30</td>
@@ -190,7 +195,7 @@
           <td class="probs">71% / 19% / 10%</td>
           <td class="ou">Over 2.5 (62%)</td>
           <td class="ou">51%</td>
-          <td class="pick pick-elo">1 (87%)</td>
+          <td class="pick pick-elo">1 (69%)</td>
           <td class="pick pick-market">-</td>
         </tr>
         <tr>
@@ -203,8 +208,8 @@
           <td class="probs">40% / 35% / 25%</td>
           <td class="ou">Under 2.5 (73%)</td>
           <td class="ou">36%</td>
-          <td class="pick pick-elo">1 (63%)</td>
-          <td class="pick pick-market">1 (49%)</td>
+          <td class="pick pick-elo">1 (51%)</td>
+          <td class="pick pick-market">? (49%)</td>
         </tr>
     </tbody>
   </table>
@@ -222,10 +227,10 @@
     </tbody>
   </table>
 </section>
-<section id="season2025" class="tab-panel" style="display:none">
+<section id="season2025" class="tab-panel" data-season="2025" data-view="overview" style="display:none">
   <div class="meta">Σεζόν 2025-2026</div>
   <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
-  <div class="accuracy">Poisson (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>10%</b> ακριβές σκορ<br>Elo (σε 306 αγώνες): <b>55%</b> σωστή πρόβλεψη 1/Χ/2</div>
+  <div class="accuracy">Poisson (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>10%</b> ακριβές σκορ &middot; Log loss <strong>0.949</strong> &middot; Brier <strong>0.564</strong><br>Elo (σε 306 αγώνες): <b>55%</b> σωστή πρόβλεψη 1/Χ/2 &middot; Log loss <strong>0.967</strong> &middot; Brier <strong>0.571</strong></div>
   
 
   <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
@@ -583,10 +588,10 @@
     </tbody>
   </table>
 </section>
-<section id="season2024" class="tab-panel" style="display:none">
+<section id="season2024" class="tab-panel" data-season="2024" data-view="overview" style="display:none">
   <div class="meta">Σεζόν 2024-2025</div>
   <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
-  <div class="accuracy">Poisson (σε 306 αγώνες): <b>55%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>14%</b> ακριβές σκορ<br>Elo (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2</div>
+  <div class="accuracy">Poisson (σε 306 αγώνες): <b>55%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>14%</b> ακριβές σκορ &middot; Log loss <strong>0.963</strong> &middot; Brier <strong>0.572</strong><br>Elo (σε 306 αγώνες): <b>54%</b> σωστή πρόβλεψη 1/Χ/2 &middot; Log loss <strong>0.970</strong> &middot; Brier <strong>0.574</strong></div>
   
 
   <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
@@ -944,10 +949,10 @@
     </tbody>
   </table>
 </section>
-<section id="season2023" class="tab-panel" style="display:none">
+<section id="season2023" class="tab-panel" data-season="2023" data-view="overview" style="display:none">
   <div class="meta">Σεζόν 2023-2024</div>
   <div class="note">Ιστορική σεζόν (backtest) — δείχνει πόσο καλά θα δούλευε το μοντέλο αν το είχαμε τρέξει τότε. Τίτλος/Top-N/Υποβ. = τι θα προέβλεπε το μοντέλο Poisson ΠΡΙΝ την 1η αγωνιστική.</div>
-  <div class="accuracy">Poisson (σε 297 αγώνες): <b>50%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>12%</b> ακριβές σκορ<br>Elo (σε 297 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2</div>
+  <div class="accuracy">Poisson (σε 297 αγώνες): <b>50%</b> σωστή πρόβλεψη 1/Χ/2 &middot; <b>12%</b> ακριβές σκορ &middot; Log loss <strong>1.015</strong> &middot; Brier <strong>0.607</strong><br>Elo (σε 297 αγώνες): <b>52%</b> σωστή πρόβλεψη 1/Χ/2 &middot; Log loss <strong>0.994</strong> &middot; Brier <strong>0.591</strong></div>
   
 
   <h3>Βαθμολογία &amp; προσομοίωση τελικής θέσης</h3>
@@ -1305,7 +1310,7 @@
     </tbody>
   </table>
 </section>
-<section id="detail-current" class="tab-panel" style="display:none">
+<section id="detail-current" class="tab-panel" data-season="current" data-view="details" style="display:none">
   <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν 2026-2027</div>
   
       <details>
@@ -4709,7 +4714,7 @@
         </table>
       </details>
 </section>
-<section id="detail-2025" class="tab-panel" style="display:none">
+<section id="detail-2025" class="tab-panel" data-season="2025" data-view="details" style="display:none">
   <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν 2025-2026</div>
   
       <details>
@@ -8113,7 +8118,7 @@
         </table>
       </details>
 </section>
-<section id="detail-2024" class="tab-panel" style="display:none">
+<section id="detail-2024" class="tab-panel" data-season="2024" data-view="details" style="display:none">
   <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν 2024-2025</div>
   
       <details>
@@ -11517,7 +11522,7 @@
         </table>
       </details>
 </section>
-<section id="detail-2023" class="tab-panel" style="display:none">
+<section id="detail-2023" class="tab-panel" data-season="2023" data-view="details" style="display:none">
   <div class="meta">Αναλυτικά αποτελέσματα &amp; προβλέψεις &middot; Σεζόν 2023-2024</div>
   
       <details>
@@ -14936,12 +14941,39 @@
     σημαίνει ότι το Poisson δίνει αισθητά μεγαλύτερη πιθανότητα από την
     αγορά στην ίδια έκβαση -- καθαρά πληροφοριακό, όχι συμβουλή στοιχηματισμού.</footer>
   <script>
+let activeSeason = 'current';
+let activeView = 'overview';
+
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(function (el) {
     el.style.display = (el.id === id) ? 'block' : 'none';
   });
   document.querySelectorAll('nav button').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.target === id);
+  });
+}
+
+function showSelection(season, view) {
+  activeSeason = season || activeSeason;
+  activeView = view || activeView;
+  let panel = document.querySelector(
+    '.tab-panel[data-season="' + activeSeason + '"][data-view="' + activeView + '"]'
+  );
+  if (!panel) {
+    activeView = 'overview';
+    panel = document.querySelector(
+      '.tab-panel[data-season="' + activeSeason + '"][data-view="overview"]'
+    );
+  }
+  if (!panel) return;
+  document.querySelectorAll('.tab-panel').forEach(function (el) {
+    el.style.display = (el === panel) ? 'block' : 'none';
+  });
+  document.querySelectorAll('[data-season-choice]').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.seasonChoice === activeSeason);
+  });
+  document.querySelectorAll('[data-view-choice]').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.viewChoice === activeView);
   });
 }
 </script>

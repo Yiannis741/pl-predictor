@@ -35,10 +35,28 @@ HOME_ADV = 70.0      # bonus rating για τον γηπεδούχο
 DRAW_D = 50.0        # πλάτος της "ζώνης ισοπαλίας" γύρω από διαφορά rating=0
 DRAW_S = 300.0       # κλίμακα της λογιστικής καμπύλης για νίκη/ήττα εκτός ζώνης
 
+# Temperature scaling των τριών πιθανοτήτων. Το 1.71 επιλέχθηκε αποκλειστικά
+# στις σεζόν 2023-24 και 2024-25 (6.508 αγώνες) και ελέγχθηκε στην ανεξάρτητη
+# σεζόν 2025-26 (3.295 αγώνες): log loss 1.059 -> 1.016, Brier 0.630 -> 0.607.
+# Δεν αλλάζει ποια έκβαση είναι πιθανότερη, μόνο διορθώνει την υπερβολική
+# βεβαιότητα του ακατέργαστου Elo.
+PROBABILITY_TEMPERATURE = 1.71
+
 
 def _expected(rating_diff: float) -> float:
     """Κλασικός τύπος Elo: πιθανότητα νίκης (ή 'αναμενόμενο σκορ' 0-1)."""
     return 1.0 / (1.0 + 10 ** (-rating_diff / 400.0))
+
+
+def calibrate_probabilities(probabilities: tuple[float, float, float],
+                            temperature: float = PROBABILITY_TEMPERATURE
+                            ) -> tuple[float, float, float]:
+    """Temperature scaling για πιθανότητες 1/Χ/2, χωρίς αλλαγή της κατάταξής τους."""
+    if temperature <= 0:
+        raise ValueError("temperature must be positive")
+    powered = [max(float(p), 1e-12) ** (1.0 / temperature) for p in probabilities]
+    total = sum(powered)
+    return tuple(p / total for p in powered)
 
 
 def compute_ratings(matches_sorted: list[dict]) -> dict[int, float]:
@@ -89,6 +107,7 @@ def predict_match(ratings: dict[int, float], home_id: int, away_id: int) -> dict
         total = p_home + p_away
         p_home, p_away = p_home / total * 0.98, p_away / total * 0.98
     p_draw = 1.0 - p_home - p_away
+    p_home, p_draw, p_away = calibrate_probabilities((p_home, p_draw, p_away))
 
     if p_home >= p_draw and p_home >= p_away:
         outcome = "H"
@@ -104,4 +123,5 @@ def predict_match(ratings: dict[int, float], home_id: int, away_id: int) -> dict
         "predicted_outcome": outcome,
         "rating_home": rh,
         "rating_away": ra,
+        "calibration_version": 1,
     }

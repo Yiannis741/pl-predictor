@@ -115,8 +115,12 @@ def _one_model_accuracy_html(label: str, accuracy: dict | None) -> str:
         return f'{label}: δεν υπάρχουν ακόμα τελειωμένοι αγώνες φέτος για αξιολόγηση.'
     exact = (f' &middot; <b>{_fmt_pct(accuracy["exact_pct"])}</b> ακριβές σκορ'
              if accuracy.get("exact_pct") is not None else "")
+    quality = ""
+    if accuracy.get("log_loss") is not None and accuracy.get("brier_score") is not None:
+        quality = (f' &middot; Log loss <strong>{accuracy["log_loss"]:.3f}</strong>'
+                   f' &middot; Brier <strong>{accuracy["brier_score"]:.3f}</strong>')
     return (f'{label} (σε {accuracy["total"]} αγώνες): '
-            f'<b>{_fmt_pct(accuracy["result_pct"])}</b> σωστή πρόβλεψη 1/Χ/2{exact}')
+            f'<b>{_fmt_pct(accuracy["result_pct"])}</b> σωστή πρόβλεψη 1/Χ/2{exact}{quality}')
 
 
 def _accuracy_html(accuracy: dict | None, elo_accuracy: dict | None = None,
@@ -406,9 +410,14 @@ _CSS = """
   .meta { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy { color:#9db4c0; margin-bottom:1rem; font-size:0.9rem; }
   .accuracy b { color:#4ade80; }
+  .accuracy strong { color:#dbe7ee; font-weight:600; }
   .generated { color:#5c7182; font-size:0.8rem; margin-bottom:1.2rem; }
-  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem;
-        border-bottom:1px solid #1c3a52; padding-bottom:1rem; }
+  .nav-shell { display:flex; align-items:flex-end; justify-content:space-between; gap:1.5rem;
+               flex-wrap:wrap; margin-bottom:1.5rem; border-bottom:1px solid #1c3a52;
+               padding-bottom:1rem; }
+  nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin:0; }
+  .nav-group { display:grid; gap:0.4rem; }
+  .nav-label { color:#5c7182; font-size:0.7rem; font-weight:700; text-transform:uppercase; }
   nav button { background:#132a3e; color:#9db4c0; border:1px solid #1c3a52;
                border-radius:6px; padding:0.5rem 1rem; font-size:0.9rem;
                cursor:pointer; font-family:inherit; }
@@ -459,12 +468,39 @@ _CSS = """
 """
 
 _JS = """
+let activeSeason = 'current';
+let activeView = 'overview';
+
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(function (el) {
     el.style.display = (el.id === id) ? 'block' : 'none';
   });
   document.querySelectorAll('nav button').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.target === id);
+  });
+}
+
+function showSelection(season, view) {
+  activeSeason = season || activeSeason;
+  activeView = view || activeView;
+  let panel = document.querySelector(
+    '.tab-panel[data-season="' + activeSeason + '"][data-view="' + activeView + '"]'
+  );
+  if (!panel) {
+    activeView = 'overview';
+    panel = document.querySelector(
+      '.tab-panel[data-season="' + activeSeason + '"][data-view="overview"]'
+    );
+  }
+  if (!panel) return;
+  document.querySelectorAll('.tab-panel').forEach(function (el) {
+    el.style.display = (el === panel) ? 'block' : 'none';
+  });
+  document.querySelectorAll('[data-season-choice]').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.seasonChoice === activeSeason);
+  });
+  document.querySelectorAll('[data-view-choice]').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.viewChoice === activeView);
   });
 }
 """
@@ -478,12 +514,53 @@ def render_site(sections: list[dict], comp: dict | None = None,
     και ο σύνδεσμος επιστροφής στο hub προσαρμόζονται ανάλογα."""
     generated = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    nav_buttons = "".join(
-        f'<button data-target="{s["id"]}" class="{"active" if i == 0 else ""}" '
-        f'onclick="showTab(\'{s["id"]}\')">{s["label"]}</button>'
-        for i, s in enumerate(sections)
+    structured_nav = bool(sections) and all(
+        s.get("season_key") and s.get("view") and s.get("season_label") for s in sections
     )
-    panels = "".join(s["html"] for s in sections)
+    if structured_nav:
+        seasons = []
+        seen = set()
+        for section in sections:
+            key = section["season_key"]
+            if key not in seen:
+                seasons.append((key, section["season_label"]))
+                seen.add(key)
+        season_buttons = "".join(
+            f'<button data-season-choice="{key}" class="{"active" if i == 0 else ""}" '
+            f'onclick="showSelection(\'{key}\', null)">'
+            f'{"Τρέχουσα · " if key == "current" else ""}{label}</button>'
+            for i, (key, label) in enumerate(seasons)
+        )
+        view_buttons = (
+            '<button data-view-choice="overview" class="active" '
+            'onclick="showSelection(null, \'overview\')">Επισκόπηση</button>'
+            '<button data-view-choice="details" '
+            'onclick="showSelection(null, \'details\')">Αγώνες</button>'
+        )
+        nav_html = (
+            '<div class="nav-shell">'
+            '<div class="nav-group"><span class="nav-label">Σεζόν</span>'
+            f'<nav>{season_buttons}</nav></div>'
+            '<div class="nav-group"><span class="nav-label">Προβολή</span>'
+            f'<nav>{view_buttons}</nav></div></div>'
+        )
+        panels = "".join(
+            s["html"].replace(
+                f'<section id="{s["id"]}" class="tab-panel"',
+                f'<section id="{s["id"]}" class="tab-panel" '
+                f'data-season="{s["season_key"]}" data-view="{s["view"]}"',
+                1,
+            )
+            for s in sections
+        )
+    else:
+        nav_buttons = "".join(
+            f'<button data-target="{s["id"]}" class="{"active" if i == 0 else ""}" '
+            f'onclick="showTab(\'{s["id"]}\')">{s["label"]}</button>'
+            for i, s in enumerate(sections)
+        )
+        nav_html = f"<nav>{nav_buttons}</nav>"
+        panels = "".join(s["html"] for s in sections)
 
     page_title = comp["name"] if comp else "PL Predictor"
     emblem_html = (f'<img src="{comp["emblem"]}" alt="" class="league-logo">' if comp else "")
@@ -502,7 +579,7 @@ def render_site(sections: list[dict], comp: dict | None = None,
   {back_link}
   <h1>{emblem_html}{page_title} &mdash; Προβλέψεις</h1>
   <div class="generated">ενημερώθηκε {generated}</div>
-  <nav>{nav_buttons}</nav>
+  {nav_html}
   {panels}
   <footer>Δεδομένα: football-data.org &middot; Μοντέλα πρόβλεψης:
     <span style="color:#facc15">Poisson</span> (μέσοι όροι γκολ με στάθμιση

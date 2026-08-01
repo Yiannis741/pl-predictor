@@ -8,6 +8,7 @@ output/<slug>.html ανά πρωτάθλημα, συν μία κεντρική o
 
 Τρέξιμο:  python update.py             -> όλα τα πρωταθλήματα
           python update.py PL          -> μόνο ένα (π.χ. για γρήγορο τεστ)
+          python update.py --render-only [PL] -> HTML μόνο από την τοπική βάση
 """
 
 import sys
@@ -43,7 +44,8 @@ def current_season_year(today=None) -> int:
     return competitions.current_season_year("PL", today)
 
 
-def run_update(client: FootballDataClient, code: str) -> str | None:
+def run_update(client: FootballDataClient | None, code: str,
+               fetch: bool = True) -> str | None:
     """Ενημερώνει ΕΝΑ πρωτάθλημα (fetch -> db -> προβλέψεις -> html).
     Επιστρέφει το path του html που παρήγαγε, ή None αν δεν υπήρχαν αρκετά
     δεδομένα."""
@@ -54,20 +56,26 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
     label_now = competitions.season_label(season, code)
     print(f"Σεζόν: {label_now}")
 
-    print("Λήψη αγώνων τρέχουσας σεζόν από football-data.org ...")
-    matches = client.get_matches(competition=code, season=season)
-    db.save_matches(matches, season, competition=code)
-    print(f"  {len(matches)} αγώνες αποθηκεύτηκαν/ενημερώθηκαν.")
+    if fetch:
+        print("Λήψη αγώνων τρέχουσας σεζόν από football-data.org ...")
+        matches = client.get_matches(competition=code, season=season)
+        db.save_matches(matches, season, competition=code)
+        print(f"  {len(matches)} αγώνες αποθηκεύτηκαν/ενημερώθηκαν.")
+    else:
+        matches = db.season_matches(season, competition=code)
+        print(f"Render-only: {len(matches)} τοπικοί αγώνες, χωρίς κλήση API.")
 
     finished = db.finished_matches(season, competition=code)
 
     if len(finished) < MIN_MATCHES_FOR_CURRENT_SEASON:
         prev_season = season - 1
+        action = "τραβάω" if fetch else "χρησιμοποιώ τοπικά"
         print(f"Λίγοι τελειωμένοι αγώνες ({len(finished)}) στην τρέχουσα σεζόν· "
-              f"τραβάω και την περσινή ({competitions.season_label(prev_season, code)}) "
+              f"{action} και την περσινή ({competitions.season_label(prev_season, code)}) "
               f"για το μοντέλο.")
-        prev_matches = client.get_matches(competition=code, season=prev_season)
-        db.save_matches(prev_matches, prev_season, competition=code)
+        if fetch:
+            prev_matches = client.get_matches(competition=code, season=prev_season)
+            db.save_matches(prev_matches, prev_season, competition=code)
         finished = finished + db.finished_matches(prev_season, competition=code)
 
     model = predictor.compute_strengths(finished)
@@ -87,7 +95,7 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
     else:
         print(f"Προβλέψεις για αγωνιστική {matchday} ({len(fixtures)} αγώνες)...")
         odds_sport = comp.get("odds_sport")
-        if odds_sport:
+        if odds_sport and fetch:
             print("Λήψη αποδόσεων στοιχήματος (The Odds API) για σύγκριση...")
             market_by_names = odds_client.fetch_predictions_by_team_names(odds_sport)
         teams_lookup = db.team_names()
@@ -108,11 +116,19 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
                     "prob_away": mpred["prob_away"],
                     "predicted_outcome": mpred["predicted_outcome"],
                 })
+        if not fetch:
+            stored_market = db.predictions_for_season(
+                season, model="market", competition=code
+            )
+            preds.extend(
+                stored_market[m["id"]] for m in fixtures if m["id"] in stored_market
+            )
         if market_by_names:
             print(f"  Αποδόσεις αγοράς: {market_matched}/{len(fixtures)} αγώνες ταιριάχτηκαν.")
-        elif odds_sport:
+        elif odds_sport and fetch:
             print("  Δεν βρέθηκαν/ταιριάξανε αποδόσεις αγοράς -- συνεχίζω μόνο με Poisson/Elo.")
-        db.save_predictions(preds)
+        if fetch:
+            db.save_predictions(preds)
 
     print("Υπολογισμός βαθμολογίας/φόρμας...")
     table = db.standings_and_form(season, competition=code)
@@ -126,7 +142,11 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
     market_team_accuracy = db.team_accuracy(season, model="market", competition=code)
     # Η "αγορά" δεν έχει ιστορικό (μόνο ζωντανές αποδόσεις) -- δείχνουμε τη
     # στήλη μόνο αν όντως υπάρχουν δεδομένα.
-    show_market_current = bool(market_by_names) or bool(market_accuracy.get("total"))
+    show_market_current = (
+        bool(market_by_names)
+        or any(p.get("model") == "market" for p in preds)
+        or bool(market_accuracy.get("total"))
+    )
 
     print(f"Προσομοίωση υπόλοιπης σεζόν ({simulate.N_SIMULATIONS} φορές, μοντέλο Poisson)...")
     all_matches = db.season_matches(season, competition=code)
@@ -137,6 +157,9 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
     sections = [{
         "id": "current",
         "label": current_label,
+        "season_key": "current",
+        "season_label": label_now,
+        "view": "overview",
         "html": render.build_section(
             "current", current_label, season, matchday, fixtures, preds,
             table=table, accuracy=accuracy, sim=sim, team_accuracy=team_accuracy,
@@ -149,6 +172,9 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
     detail_sections = [{
         "id": "detail-current",
         "label": f"Αναλυτικά {label_now}",
+        "season_key": "current",
+        "season_label": label_now,
+        "view": "details",
         "html": render.build_detail_section(
             "detail-current", f"Αναλυτικά {label_now}", season,
             all_matches, db.predictions_for_season(season, model="poisson", competition=code),
@@ -190,6 +216,9 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
         sections.append({
             "id": hist_id,
             "label": hist_label,
+            "season_key": str(hist_season),
+            "season_label": hist_label,
+            "view": "overview",
             "html": render.build_section(
                 hist_id, hist_label, hist_season, None, [], [], table=hist_table,
                 accuracy=hist_accuracy, sim=hist_sim, team_accuracy=hist_team_accuracy,
@@ -205,6 +234,9 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
         detail_sections.append({
             "id": detail_id,
             "label": detail_label,
+            "season_key": str(hist_season),
+            "season_label": hist_label,
+            "view": "details",
             "html": render.build_detail_section(
                 detail_id, detail_label, hist_season, hist_matches,
                 db.predictions_for_season(hist_season, model="poisson", competition=code),
@@ -222,15 +254,19 @@ def run_update(client: FootballDataClient, code: str) -> str | None:
 def main() -> None:
     print("== pl-predictor: ενημέρωση ==")
     db.init_db()
-    client = FootballDataClient()
-
-    only = sys.argv[1] if len(sys.argv) > 1 else None
+    args = sys.argv[1:]
+    render_only = "--render-only" in args
+    args = [arg for arg in args if arg != "--render-only"]
+    only = args[0].upper() if args else None
+    if only and only not in competitions.BY_CODE:
+        raise SystemExit(f"Άγνωστος κωδικός πρωταθλήματος: {only}")
+    client = None if render_only else FootballDataClient()
     codes = [only] if only else [c["code"] for c in competitions.COMPETITIONS]
 
     ok = []
     for code in codes:
         try:
-            out_path = run_update(client, code)
+            out_path = run_update(client, code, fetch=not render_only)
             if out_path:
                 ok.append(competitions.get(code))
         except Exception as e:

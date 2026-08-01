@@ -4,10 +4,11 @@
 καλύπτει το πρόγραμμα (μία κοινή βάση, ξεχωρίζουν με τη στήλη
 matches.competition)."""
 
+import math
 import sqlite3
 from contextlib import contextmanager
 
-from . import config
+from . import config, elo
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS teams (
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     prob_away REAL,
     rating_home REAL,
     rating_away REAL,
+    calibration_version INTEGER NOT NULL DEFAULT 0,
     generated_at TEXT,
     PRIMARY KEY (match_id, model)
 );
@@ -72,6 +74,27 @@ def _migrate(conn) -> None:
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(matches)").fetchall()]
     if "competition" not in cols:
         conn.execute("ALTER TABLE matches ADD COLUMN competition TEXT NOT NULL DEFAULT 'PL'")
+    prediction_cols = [
+        r["name"] for r in conn.execute("PRAGMA table_info(predictions)").fetchall()
+    ]
+    if "calibration_version" not in prediction_cols:
+        conn.execute(
+            "ALTER TABLE predictions ADD COLUMN calibration_version INTEGER NOT NULL DEFAULT 0"
+        )
+
+
+def _calibrated_probabilities(row, model: str) -> tuple[float, float, float] | None:
+    values = (row["prob_home"], row["prob_draw"], row["prob_away"])
+    if any(value is None for value in values):
+        return None
+    probabilities = tuple(float(value) for value in values)
+    version = row["calibration_version"] if "calibration_version" in row.keys() else 0
+    if model == "elo" and not version:
+        return elo.calibrate_probabilities(probabilities)
+    total = sum(probabilities)
+    if total <= 0:
+        return None
+    return tuple(max(value / total, 1e-12) for value in probabilities)
 
 
 def init_db() -> None:
@@ -289,7 +312,8 @@ def accuracy_stats(season: int, model: str = "poisson", competition: str = "PL")
         rows = conn.execute(
             """SELECT m.home_score, m.away_score,
                       p.predicted_home_score, p.predicted_away_score,
-                      p.prob_home, p.prob_draw, p.prob_away
+                      p.prob_home, p.prob_draw, p.prob_away,
+                      p.calibration_version
                FROM matches m JOIN predictions p ON p.match_id = m.id
                WHERE m.season=? AND m.competition=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
@@ -300,11 +324,24 @@ def accuracy_stats(season: int, model: str = "poisson", competition: str = "PL")
     correct_result = 0
     exact_score = 0
     exact_eligible = 0
+    log_loss = 0.0
+    brier_score = 0.0
+    probability_eligible = 0
     for r in rows:
         actual = "H" if r["home_score"] > r["away_score"] else (
             "A" if r["home_score"] < r["away_score"] else "D")
 
-        ph, pd, pa = r["prob_home"], r["prob_draw"], r["prob_away"]
+        probabilities = _calibrated_probabilities(r, model)
+        if probabilities is None:
+            continue
+        ph, pd, pa = probabilities
+        actual_index = {"H": 0, "D": 1, "A": 2}[actual]
+        log_loss -= math.log(probabilities[actual_index])
+        brier_score += sum(
+            (probability - (1.0 if index == actual_index else 0.0)) ** 2
+            for index, probability in enumerate(probabilities)
+        )
+        probability_eligible += 1
         if ph >= pd and ph >= pa:
             predicted = "H"
         elif pa >= pd:
@@ -325,6 +362,8 @@ def accuracy_stats(season: int, model: str = "poisson", competition: str = "PL")
         "correct_result": correct_result,
         "exact_score": exact_score,
         "result_pct": (correct_result / total * 100) if total else None,
+        "log_loss": (log_loss / probability_eligible) if probability_eligible else None,
+        "brier_score": (brier_score / probability_eligible) if probability_eligible else None,
         # Το Elo/η Αγορά δεν προβλέπουν ακριβές σκορ (predicted_home_score=NULL)
         # -- None σημαίνει "δεν εφαρμόζεται", διαφορετικό από 0%.
         "exact_pct": (exact_score / exact_eligible * 100) if exact_eligible else None,
@@ -338,7 +377,8 @@ def team_accuracy(season: int, model: str = "poisson", competition: str = "PL") 
     with connect() as conn:
         rows = conn.execute(
             """SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score,
-                      p.prob_home, p.prob_draw, p.prob_away
+                      p.prob_home, p.prob_draw, p.prob_away,
+                      p.calibration_version
                FROM matches m JOIN predictions p ON p.match_id = m.id
                WHERE m.season=? AND m.competition=? AND p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
@@ -349,7 +389,10 @@ def team_accuracy(season: int, model: str = "poisson", competition: str = "PL") 
     for r in rows:
         actual = "H" if r["home_score"] > r["away_score"] else (
             "A" if r["home_score"] < r["away_score"] else "D")
-        ph, pd, pa = r["prob_home"], r["prob_draw"], r["prob_away"]
+        probabilities = _calibrated_probabilities(r, model)
+        if probabilities is None:
+            continue
+        ph, pd, pa = probabilities
         if ph >= pd and ph >= pa:
             predicted = "H"
         elif pa >= pd:
@@ -378,7 +421,15 @@ def predictions_for_season(season: int, model: str = "poisson", competition: str
                WHERE m.season=? AND m.competition=? AND p.model=?""",
             (season, competition, model),
         ).fetchall()
-        return {r["match_id"]: dict(r) for r in rows}
+        predictions = {}
+        for row in rows:
+            prediction = dict(row)
+            probabilities = _calibrated_probabilities(row, model)
+            if probabilities is not None:
+                (prediction["prob_home"], prediction["prob_draw"],
+                 prediction["prob_away"]) = probabilities
+            predictions[row["match_id"]] = prediction
+        return predictions
 
 
 def all_predictions_with_results(model: str = "poisson") -> list[dict]:
@@ -388,13 +439,21 @@ def all_predictions_with_results(model: str = "poisson") -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             """SELECT m.competition, m.season, m.home_score, m.away_score,
-                      p.prob_home, p.prob_draw, p.prob_away
+                      p.prob_home, p.prob_draw, p.prob_away,
+                      p.calibration_version
                FROM matches m JOIN predictions p ON p.match_id = m.id
                WHERE p.model=? AND m.status='FINISHED'
                  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL""",
             (model,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        results = []
+        for row in rows:
+            result = dict(row)
+            probabilities = _calibrated_probabilities(row, model)
+            if probabilities is not None:
+                result["prob_home"], result["prob_draw"], result["prob_away"] = probabilities
+            results.append(result)
+        return results
 
 
 def save_predictions(preds: list[dict]) -> None:
@@ -406,17 +465,19 @@ def save_predictions(preds: list[dict]) -> None:
             conn.execute(
                 """INSERT INTO predictions (match_id, model, predicted_home_score,
                        predicted_away_score, prob_home, prob_draw, prob_away,
-                       rating_home, rating_away, generated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                       rating_home, rating_away, calibration_version, generated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                    ON CONFLICT(match_id, model) DO UPDATE SET
                      predicted_home_score=excluded.predicted_home_score,
                      predicted_away_score=excluded.predicted_away_score,
                      prob_home=excluded.prob_home, prob_draw=excluded.prob_draw,
-                     prob_away=excluded.prob_away, rating_home=excluded.rating_home,
-                     rating_away=excluded.rating_away,
-                     generated_at=excluded.generated_at""",
+                      prob_away=excluded.prob_away, rating_home=excluded.rating_home,
+                      rating_away=excluded.rating_away,
+                      calibration_version=excluded.calibration_version,
+                      generated_at=excluded.generated_at""",
                 (p["match_id"], p.get("model", "poisson"),
                  p.get("predicted_home_score"), p.get("predicted_away_score"),
-                 p["prob_home"], p["prob_draw"], p["prob_away"],
-                 p.get("rating_home"), p.get("rating_away")),
+                  p["prob_home"], p["prob_draw"], p["prob_away"],
+                  p.get("rating_home"), p.get("rating_away"),
+                  p.get("calibration_version", 0)),
             )
